@@ -152,153 +152,50 @@ class TestNetworkAdapter(unittest.TestCase):
 class TestIsManagedByNetworkManager(unittest.TestCase):
     """Test is_managed_by_network_manager function"""
 
-    def setUp(self):
-        """Setup the proxy and objects"""
-
-        # setup proxies
-        self.network_manager_proxy = "NetworkManagerProxy"
-        self.device_proxy_0 = "DeviceProxy_0"
-        self.device_proxy_1 = "DeviceProxy_1"
-
-        # setup network_manager object
-        self.network_manager = mock.MagicMock()
-        self.network_manager.GetDevices.return_value = ["wlan0", "wlan1"]
-        # setup for test enable_enable_network_manager
-        # Get returns the attribute of NetworkingEnabled
-        self.network_manager.Get.return_value = True
-        self.network_manager.Enable.return_value = None
-
-        # setup device_0 object
-        self.interface_0 = "wlan0"
-        self.device_0 = mock.MagicMock()
-        self.device_0.Interface = self.interface_0
-        self.device_0.Managed = True
-
-        # setup device_1 object
-        self.interface_1 = "wlan1"
-        self.device_1 = mock.MagicMock()
-        self.device_1.Interface = self.interface_1
-        self.device_1.Managed = False
-
-        self.bus = mock.MagicMock()
-        self.bus.get_object.side_effect = self.get_object()
-
-    def get_interface(self):
-        """
-        Simulate dbus.Interface
-        """
-
-        def interface_side_effect(proxy, dbus_interface=None):
-            if proxy == self.network_manager_proxy:
-                return self.network_manager
-            elif proxy == self.device_proxy_0:
-                self.device_0.Get.side_effect = self.get_device_property(self.device_0)
-                return self.device_0
-            elif proxy == self.device_proxy_1:
-                self.device_1.Get.side_effect = self.get_device_property(self.device_1)
-                return self.device_1
-
-        return interface_side_effect
-
-    def get_device_property(self, device_obj):
-        """
-        Simulate the device.Get method to get the property of
-        the device object
-        """
-
-        def device_side_effect(object_path, device_property):
-            if device_obj == self.device_0:
-                if device_property == "Interface":
-                    return self.interface_0
-                elif device_property == "Managed":
-                    return self.device_0.Managed
-            elif device_obj == self.device_1:
-                if device_property == "Interface":
-                    return self.interface_1
-                elif device_property == "Managed":
-                    return self.device_1.Managed
-
-        return device_side_effect
-
-    def get_object(self):
-        """
-        Simulate the get_object method to get the proxy object
-        """
-
-        def bus_side_effect(proxy_object, obj_path):
-            if obj_path == constants.NM_MANAGER_OBJ_PATH:
-                return self.network_manager_proxy
-            elif obj_path == self.interface_0:
-                return self.device_proxy_0
-            elif obj_path == self.interface_1:
-                return self.device_proxy_1
-
-        return bus_side_effect
-
-    @mock.patch("dbus.Interface")
-    @mock.patch("dbus.SystemBus")
-    def test_is_managed_by_networkmanager_is_managed_true(
-        self, fake_bus, fake_interface
-    ):
+    @mock.patch("wifiphisher.common.interfaces.Popen")
+    def test_is_managed_by_networkmanager_is_managed_true(self, mock_popen):
         """
         Test is_managed_by_networkmanager with the interface
         managed by NetworkManager
         """
+        process_mock = mock.Mock()
+        process_mock.communicate.return_value = (
+            b"wlan0      connected    Synced\nwlan1      unmanaged    \n",
+            None,
+        )
+        process_mock.stdout = mock.Mock()
+        process_mock.stdout.close = mock.Mock()
+        mock_popen.return_value = process_mock
+        is_managed = interfaces.is_managed_by_network_manager("wlan0")
+        self.assertTrue(is_managed)
 
-        fake_bus.return_value = self.bus
-        fake_interface.side_effect = self.get_interface()
-        is_managed = interfaces.is_managed_by_network_manager(self.interface_0)
-
-        message = "the managed property should be true"
-        self.assertTrue(is_managed, message)
-
-    @mock.patch("dbus.Interface")
-    @mock.patch("dbus.SystemBus")
-    def test_is_managed_by_networkmanager_is_managed_false(
-        self, fake_bus, fake_interface
-    ):
+    @mock.patch("wifiphisher.common.interfaces.Popen")
+    def test_is_managed_by_networkmanager_is_managed_false(self, mock_popen):
         """
         Test is_managed_by_networkmanager with the interface
         is not managed by NetworkManager
         """
+        process_mock = mock.Mock()
+        process_mock.communicate.return_value = (
+            b"wlan0      unmanaged    \nwlan1      connected    Synced\n",
+            None,
+        )
+        process_mock.stdout = mock.Mock()
+        process_mock.stdout.close = mock.Mock()
+        mock_popen.return_value = process_mock
+        is_managed = interfaces.is_managed_by_network_manager("wlan0")
+        self.assertFalse(is_managed)
 
-        fake_bus.return_value = self.bus
-        fake_interface.side_effect = self.get_interface()
-        is_managed = interfaces.is_managed_by_network_manager(self.interface_1)
-
-        message = "the managed property should be true"
-        self.assertFalse(is_managed, message)
-
-    @mock.patch("wifiphisher.common.interfaces.dbus")
-    def test_is_managed_by_network_manager_unexpected_error_error(self, my_dbus):
+    @mock.patch("wifiphisher.common.interfaces.Popen")
+    def test_is_managed_by_network_manager_unexpected_error_error(self, mock_popen):
         """
         Test is_managed_by_network_manager function when an
         unexpected error happens and checks to see if the
         error is raised
         """
-
-        my_dbus.Interface.side_effect = KeyError
-
+        mock_popen.side_effect = KeyError
         with self.assertRaises(KeyError):
             interfaces.is_managed_by_network_manager("wlan0")
-
-    @mock.patch("dbus.Interface")
-    @mock.patch("dbus.SystemBus")
-    def test_is_managed_by_networkmanager_is_managed_false(
-        self, fake_bus, fake_interface
-    ):
-        """
-        Test is_managed_by_network_manager when dbus service is
-        not running. It should raise dbus.exceptions.DbusException
-        and we should just return False under this case.
-        """
-
-        fake_bus.return_value = self.bus
-        fake_interface.side_effect = dbus.exceptions.DBusException  # noqa: F821
-        is_managed = interfaces.is_managed_by_network_manager(self.interface_1)
-
-        message = "the managed property should be false"
-        self.assertFalse(is_managed, message)
 
 
 class TestInterfacePropertyDetector(unittest.TestCase):
@@ -517,7 +414,8 @@ class TestNetworkManager(unittest.TestCase):
         with self.assertRaises(interfaces.InvalidInterfaceError):
             self.network_manager.is_interface_valid(interface_name, "monitor")
 
-    def test_is_interface_valid_mode_monitor_is_managed_by_nm_error(self):
+    @mock.patch("wifiphisher.common.interfaces.Popen")
+    def test_is_interface_valid_mode_monitor_is_managed_by_nm_error(self, mock_popen):
         """
         Tests is_interface_valid when the adapter is required as monitor but
         is managed by NetworkManager
@@ -529,6 +427,7 @@ class TestNetworkManager(unittest.TestCase):
         adapter.has_monitor_mode = True
         self.network_manager._name_to_object[interface_name] = adapter
         self.network_manager.internet_access_enable = True
+        mock_popen.side_effect = Exception("nmcli failed")
         with self.assertRaises(interfaces.InterfaceManagedByNetworkManagerError):
             self.network_manager.is_interface_valid(interface_name, "monitor")
 
@@ -548,7 +447,8 @@ class TestNetworkManager(unittest.TestCase):
         message = "Failed to validate an interface with monitor mode"
         self.assertTrue(actual, message)
 
-    def test_is_interface_valid_mode_ap_is_managed_by_nm_error(self):
+    @mock.patch("wifiphisher.common.interfaces.Popen")
+    def test_is_interface_valid_mode_ap_is_managed_by_nm_error(self, mock_popen):
         """
         Tests is_interface_valid when the adapter is required as AP but
         is managed by NetworkManager
@@ -560,6 +460,7 @@ class TestNetworkManager(unittest.TestCase):
         adapter.has_ap_mode = True
         self.network_manager._name_to_object[interface_name] = adapter
         self.network_manager.internet_access_enable = True
+        mock_popen.side_effect = Exception("nmcli failed")
         self.assertRaises(
             interfaces.InterfaceManagedByNetworkManagerError,
             self.network_manager.is_interface_valid,
@@ -1009,9 +910,11 @@ class TestNetworkManager(unittest.TestCase):
         """
 
         pyric.interfaces.return_value = []
+        args = mock.Mock()
+        args.internetinterface = None
 
         # just checking to make sure no errors were produced
-        self.assertIsNone(self.network_manager.start())
+        self.assertIsNone(self.network_manager.start(args))
 
     @mock.patch("wifiphisher.common.interfaces.pyw")
     def test_start_has_interface_none(self, pyric):
@@ -1021,9 +924,11 @@ class TestNetworkManager(unittest.TestCase):
 
         interface_name = "wlan0"
         pyric.interfaces.return_value = [interface_name]
+        args = mock.Mock()
+        args.internetinterface = None
 
         # just checking to make sure no errors were produced
-        self.assertIsNone(self.network_manager.start())
+        self.assertIsNone(self.network_manager.start(args))
 
     @mock.patch("wifiphisher.common.interfaces.pyw.getcard")
     def test_start_interface_not_compatible_none(self, pyw):
@@ -1032,7 +937,9 @@ class TestNetworkManager(unittest.TestCase):
         """
 
         pyw.side_effect = pyric.error(93, "Device does not support nl80211")
-        self.network_manager.start()
+        args = mock.Mock()
+        args.internetinterface = None
+        self.network_manager.start(args)
 
     @mock.patch("wifiphisher.common.interfaces.pyw.getcard")
     def test_start_interface_no_such_device_none(self, pyw):
@@ -1041,9 +948,11 @@ class TestNetworkManager(unittest.TestCase):
         """
 
         pyw.side_effect = pyric.error(19, "No such device")
+        args = mock.Mock()
+        args.internetinterface = None
 
         # just checking to make sure error is not raised
-        self.assertIsNone(self.network_manager.start())
+        self.assertIsNone(self.network_manager.start(args))
 
     @mock.patch("wifiphisher.common.interfaces.pyw.getcard")
     def test_start_interface_unidentified_error_error(self, pyw):
@@ -1053,9 +962,11 @@ class TestNetworkManager(unittest.TestCase):
         """
 
         pyw.side_effect = pyric.error(2220, "This is a fake error")
+        args = mock.Mock()
+        args.internetinterface = None
 
         with self.assertRaises(pyric.error) as error:
-            self.network_manager.start()
+            self.network_manager.start(args)
 
         the_exception = error.exception
         self.assertEqual(the_exception[0], 2220, "The error was not caught.")
@@ -1127,7 +1038,7 @@ class TestNetworkManager(unittest.TestCase):
 
         operation = self.network_manager.set_interface_mac(interface_name, mac_address)
         message = "Failed when a valid mac address was provided"
-        self.assertIsNone(operation, message)
+        self.assertEqual(operation, mac_address, message)
 
     @mock.patch("wifiphisher.common.interfaces.pyw")
     def test_set_interface_unexpected_error(self, pyw):
@@ -1152,7 +1063,7 @@ class TestNetworkManager(unittest.TestCase):
     @mock.patch("wifiphisher.common.interfaces.pyw")
     def test_set_interface_mac_random_none(self, pyw):
         """
-        Test set_interface_mac_random under normal conditions
+        Test set_interface_mac with no mac address generates a random one
         """
 
         new_mac_address = "00:11:22:33:44:55"
@@ -1169,8 +1080,9 @@ class TestNetworkManager(unittest.TestCase):
             "wifiphisher.common.interfaces.generate_random_address"
         ) as generator:
             generator.return_value = new_mac_address
-            self.network_manager.set_interface_mac_random(interface_name)
+            result = self.network_manager.set_interface_mac(interface_name)
 
+            self.assertEqual(result, new_mac_address)
             pyw.macset.assert_called_once_with(interface_object, new_mac_address)
 
     def test_get_interface_mac_address(self):
@@ -1228,7 +1140,7 @@ class TestNetworkManager(unittest.TestCase):
         pyric.down.return_value = None
         pyric.devadd.return_value = None
         actual = self.network_manager.add_virtual_interface(card)
-        expected = "wlan1"
+        expected = "wfphshr-wlan0"
         self.assertEqual(actual, expected)
 
     @mock.patch("wifiphisher.common.interfaces.pyw")
@@ -1258,7 +1170,7 @@ class TestNetworkManager(unittest.TestCase):
 
         mock_pyric.down.return_value = None
         mock_pyric.devadd.side_effect = side_effect
-        expected = "wlan2"
+        expected = "wfphshr-wlan1"
         actual = self.network_manager.add_virtual_interface(card)
         self.assertEqual(actual, expected)
 
@@ -1268,16 +1180,15 @@ class TestNetworkManager(unittest.TestCase):
         Test only has one card support both monitor and ap
         This case should return tuple of card and this the single phy case
         """
-        args = mock.Mock()
-        args.internetinterface = None
-        args.wpspbc_assoc_interface = None
         card = mock.Mock()
         card.phy = "phy0"
         pyric.interfaces.return_value = ["wlan0"]
         pyric.iswireless.return_value = True
         pyric.getcard.return_value = card
         pyric.devmodes.return_value = ["monitor", "AP"]
-        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(args)
+        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(
+            None, None, None
+        )
         self.assertEqual(actual_card, card)
         self.assertEqual(is_single_perfect_card, True)
 
@@ -1288,16 +1199,15 @@ class TestNetworkManager(unittest.TestCase):
         virtual interfaces are already greater than 2
         """
 
-        args = mock.Mock()
-        args.internetinterface = None
-        args.wpspbc_assoc_interface = None
         card = mock.Mock()
         card.phy = "phy0"
         pyric.interfaces.return_value = ["wlan0", "wlan1"]
         pyric.iswireless.return_value = True
         pyric.getcard.return_value = card
         pyric.devmodes.return_value = ["monitor", "AP"]
-        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(args)
+        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(
+            None, None, None
+        )
         self.assertEqual(actual_card, None)
         self.assertEqual(is_single_perfect_card, True)
 
@@ -1312,10 +1222,6 @@ class TestNetworkManager(unittest.TestCase):
         card0.phy = "phy0"
         card1 = mock.Mock()
         card1.phy = "phy1"
-        args = mock.Mock()
-        args.internetinterface = None
-        args.wpspbc_assoc_interface = None
-        card = mock.Mock()
 
         pyric.interfaces.return_value = ["wlan0", "wlan1"]
         pyric.iswireless.return_value = True
@@ -1334,7 +1240,9 @@ class TestNetworkManager(unittest.TestCase):
 
         pyric.getcard.side_effect = get_card_side_effect
         pyric.devmodes.side_effect = devmodes_side_effect
-        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(args)
+        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(
+            None, None, None
+        )
         self.assertEqual(actual_card, card1)
         self.assertEqual(is_single_perfect_card, True)
 
@@ -1349,8 +1257,6 @@ class TestNetworkManager(unittest.TestCase):
         card0.phy = "phy0"
         card1 = mock.Mock()
         card1.phy = "phy1"
-        args = mock.Mock()
-        args.internetinterface = None
 
         pyric.interfaces.return_value = ["wlan0", "wlan1"]
         pyric.iswireless.return_value = True
@@ -1369,7 +1275,9 @@ class TestNetworkManager(unittest.TestCase):
 
         pyric.getcard.side_effect = get_card_side_effect
         pyric.devmodes.side_effect = devmodes_side_effect
-        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(args)
+        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(
+            None, None, None
+        )
         self.assertEqual(actual_card, None)
         self.assertEqual(is_single_perfect_card, False)
 
@@ -1384,8 +1292,6 @@ class TestNetworkManager(unittest.TestCase):
         card0.phy = "phy0"
         card1 = mock.Mock()
         card1.phy = "phy1"
-        args = mock.Mock()
-        args.internetinterface = "wlan1"
 
         pyric.interfaces.return_value = ["wlan0", "wlan1"]
         pyric.iswireless.return_value = True
@@ -1404,7 +1310,9 @@ class TestNetworkManager(unittest.TestCase):
 
         pyric.getcard.side_effect = get_card_side_effect
         pyric.devmodes.side_effect = devmodes_side_effect
-        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(args)
+        actual_card, is_single_perfect_card = interfaces.is_add_vif_required(
+            None, "wlan1", None
+        )
         self.assertEqual(actual_card, None)
         self.assertEqual(is_single_perfect_card, False)
 
@@ -1421,7 +1329,7 @@ class TestGenerateRandomAddress(unittest.TestCase):
 
         random_module.randint.side_effect = [10, 100, 200]
 
-        expected = "00:00:00:0a:64:c8"
+        expected = "02:00:00:0a:64:c8"
         actual = interfaces.generate_random_address()
         self.assertEqual(actual, expected)
 

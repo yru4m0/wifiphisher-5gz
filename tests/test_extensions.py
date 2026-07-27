@@ -101,7 +101,12 @@ class TestExtensionManager(unittest.TestCase):
         # Init an EM and pass some shared data
         em = extensions.ExtensionManager(nm)
         em.set_extensions(constants.DEFAULT_EXTENSIONS)
-        shared_data = {"one": 1, "two": 2, "is_freq_hop_allowed": True}
+        shared_data = {
+            "one": 1,
+            "two": 2,
+            "is_freq_hop_allowed": True,
+            "target_ap_channel": 1,
+        }
         em.init_extensions(shared_data)
         # A deauth packet appears in the air
         packet = (
@@ -133,7 +138,12 @@ class TestExtensionManager(unittest.TestCase):
         # Init an EM and pass some shared data
         em = extensions.ExtensionManager(nm)
         em.set_extensions(constants.DEFAULT_EXTENSIONS)
-        shared_data = {"one": 1, "two": 2, "is_freq_hop_allowed": True}
+        shared_data = {
+            "one": 1,
+            "two": 2,
+            "is_freq_hop_allowed": True,
+            "target_ap_channel": 1,
+        }
         em.init_extensions(shared_data)
         # A deauth packet appears in the air
         packet = (
