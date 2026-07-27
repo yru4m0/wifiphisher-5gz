@@ -26,6 +26,10 @@ def safe_curses_wrapper(func, *args, **kwargs):
             curses.cbreak()
         except curses.error:
             pass
+        try:
+            curses.start_color()
+        except curses.error:
+            pass
         stdscr.keypad(True)
         try:
             return func(stdscr, *args, **kwargs)
@@ -283,9 +287,12 @@ class TuiTemplateSelection(object):
         except curses.error:
             pass
         screen.nodelay(True)
-        curses.init_pair(1, curses.COLOR_GREEN, screen.getbkgd())
+        if curses.has_colors():
+            curses.start_color()
+            curses.init_pair(1, curses.COLOR_GREEN, screen.getbkgd())
         # heightlight the phishing scenarios
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
+        if curses.has_colors():
+            curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
 
         self.green_text = curses.color_pair(1) | curses.A_BOLD
         self.heightlight_text = curses.color_pair(2) | curses.A_BOLD
@@ -541,7 +548,9 @@ class TuiApSel(object):
         # don't wait for user input
         screen.nodelay(True)
         # setup the font color
-        curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
+        if curses.has_colors():
+            curses.start_color()
+            curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_CYAN)
         self.highlight_text = curses.color_pair(1)
         self.normal_text = curses.A_NORMAL
 
@@ -862,9 +871,11 @@ class TuiMain(object):
         except curses.error:
             pass
         screen.nodelay(True)
-        curses.init_pair(1, curses.COLOR_BLUE, screen.getbkgd())
-        curses.init_pair(2, curses.COLOR_YELLOW, screen.getbkgd())
-        curses.init_pair(3, curses.COLOR_RED, screen.getbkgd())
+        if curses.has_colors():
+            curses.start_color()
+            curses.init_pair(1, curses.COLOR_BLUE, screen.getbkgd())
+            curses.init_pair(2, curses.COLOR_YELLOW, screen.getbkgd())
+            curses.init_pair(3, curses.COLOR_RED, screen.getbkgd())
         self.blue_text = curses.color_pair(1) | curses.A_BOLD
         self.yellow_text = curses.color_pair(2) | curses.A_BOLD
         self.red_text = curses.color_pair(3) | curses.A_BOLD
