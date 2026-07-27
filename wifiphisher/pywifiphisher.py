@@ -373,7 +373,32 @@ def set_channel_range():
         )
         universal.ALL_2G_CHANNELS = list(range(1, 14))
 
-    universal.ALL_5G_CHANNELS = list(range(36, 166))
+    universal.ALL_5G_CHANNELS = [
+        36,
+        40,
+        44,
+        48,
+        52,
+        56,
+        60,
+        64,
+        100,
+        104,
+        108,
+        112,
+        116,
+        120,
+        124,
+        128,
+        132,
+        136,
+        140,
+        149,
+        153,
+        157,
+        161,
+        165,
+    ]
     return
 
 
