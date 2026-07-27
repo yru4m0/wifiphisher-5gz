@@ -162,9 +162,8 @@ CLASSIFIERS = [
     "Intended Audience :: Information Technology",
 ]
 ENTRY_POINTS = {"console_scripts": ["wifiphisher = wifiphisher.pywifiphisher:run"]}
-INSTALL_REQUIRES = ["pbkdf2", "scapy", "tornado>=5.0.0", "roguehostapd", "pyric"]
+INSTALL_REQUIRES = ["pbkdf2", "scapy", "tornado>=5.0.0", "pyric"]
 DEPENDENCY_LINKS = [
-    "http://github.com/yru4m0/roguehostapd-5gz/tarball/master#egg=roguehostapd-1.9.0",
     "http://github.com/sophron/pyric/tarball/master#egg=pyric-0.5.0",
 ]
 CMDCLASS = {
