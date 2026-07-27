@@ -19,10 +19,25 @@ import wifiphisher.common.victim as victim
 
 
 def safe_curses_wrapper(func, *args, **kwargs):
+    stdscr = curses.initscr()
     try:
-        return curses.wrapper(func, *args, **kwargs)
-    except curses.error:
-        pass
+        curses.noecho()
+        try:
+            curses.cbreak()
+        except curses.error:
+            pass
+        stdscr.keypad(True)
+        try:
+            return func(stdscr, *args, **kwargs)
+        finally:
+            stdscr.keypad(False)
+            curses.echo()
+    finally:
+        try:
+            curses.nocbreak()
+        except curses.error:
+            pass
+        curses.endwin()
 
 
 # information for the main terminal
