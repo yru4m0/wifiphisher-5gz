@@ -12,6 +12,7 @@ from subprocess import check_output
 
 import wifiphisher.common.accesspoint as accesspoint
 import wifiphisher.common.constants as constants
+import wifiphisher.common.globals as universal
 import wifiphisher.common.phishingpage as phishingpage
 import wifiphisher.common.recon as recon
 import wifiphisher.common.victim as victim
@@ -131,8 +132,7 @@ class TuiTemplateSelection(object):
             raise phishingpage.InvalidTemplate
         else:
             # prompt interactive phishing scenarios to let user select one
-            template = curses.wrapper(self.display_info, templates,
-                                      template_names)
+            template = curses.wrapper(self.display_info, templates, template_names)
         return template
 
     def key_movement(self, screen, number_of_sections, key):
@@ -178,8 +178,10 @@ class TuiTemplateSelection(object):
 
         try:
             max_window_height, max_window_len = screen.getmaxyx()
-            if self.dimension[0] != max_window_height or\
-                    self.dimension[1] != max_window_len:
+            if (
+                self.dimension[0] != max_window_height
+                or self.dimension[1] != max_window_len
+            ):
                 screen.erase()
             self.dimension[0] = max_window_height
             self.dimension[1] = max_window_len
@@ -188,8 +190,9 @@ class TuiTemplateSelection(object):
             display_str = "Options: [Up Arrow] Move Up  [Down Arrow] Move Down"
             screen.addstr(0, 0, display_string(max_window_len, display_str))
             display_str = "Available Phishing Scenarios:"
-            screen.addstr(3, 0, display_string(max_window_len, display_str),
-                          curses.A_BOLD)
+            screen.addstr(
+                3, 0, display_string(max_window_len, display_str), curses.A_BOLD
+            )
         except curses.error:
             return 0
 
@@ -198,16 +201,16 @@ class TuiTemplateSelection(object):
         first = False
         for number, short_lines in enumerate(self.sections):
             try:
-
                 # incase user shrink the window and the heightlight section
                 # is in the next page. for this case, just shift the
                 # heightlight section to the first scenario in the first
                 # page
-                if self.sec_page_map[self.heightlight_number] !=\
-                        self.page_number and not first:
+                if (
+                    self.sec_page_map[self.heightlight_number] != self.page_number
+                    and not first
+                ):
                     # heightlight the first scenario
-                    screen.addstr(row_num, 2, short_lines[0],
-                                  self.heightlight_text)
+                    screen.addstr(row_num, 2, short_lines[0], self.heightlight_text)
                     self.heightlight_number = 0
                     self.page_number = 0
                     first = True
@@ -220,8 +223,7 @@ class TuiTemplateSelection(object):
 
                 # emphasize the phishing scenario
                 if number == self.heightlight_number:
-                    screen.addstr(row_num, 2, short_lines[0],
-                                  self.heightlight_text)
+                    screen.addstr(row_num, 2, short_lines[0], self.heightlight_text)
                 else:
                     screen.addstr(row_num, 2, short_lines[0], curses.A_BOLD)
                 row_num += 1
@@ -284,9 +286,12 @@ class TuiTemplateSelection(object):
             # display the words of chosen template
             if key == ord("\n"):
                 try:
-                    screen.addstr(row_number, 3, "YOU HAVE SELECTED " +
-                                  template_names[self.heightlight_number],
-                                  curses.A_BOLD)
+                    screen.addstr(
+                        row_number,
+                        3,
+                        "YOU HAVE SELECTED " + template_names[self.heightlight_number],
+                        curses.A_BOLD,
+                    )
                 except curses.error:
                     pass
                 screen.refresh()
@@ -469,8 +474,7 @@ class TuiApSel(object):
             box = curses.newwin(max_window_height, max_window_length, 0, 0)
             self.renew_box = True
         else:
-            box = curses.newwin(max_window_height - 9, max_window_length - 5,
-                                4, 3)
+            box = curses.newwin(max_window_height - 9, max_window_length - 5, 4, 3)
         box.box()
 
         # calculate the box's maximum number of row's
@@ -485,7 +489,8 @@ class TuiApSel(object):
         self.mac_matcher = info.mac_matcher
         # start finding access points
         self.access_point_finder = recon.AccessPointFinder(
-            info.interface, info.network_manager)
+            info.interface, info.network_manager, info.args.band
+        )
         if info.args.lure10_capture:
             self.access_point_finder.capture_aps()
         self.access_point_finder.find_all_access_points()
@@ -642,12 +647,10 @@ class TuiApSel(object):
         self.resize_window(screen, ap_info)
 
         # check if any new access points have been discovered
-        new_total_ap_number = len(
-            self.access_point_finder.observed_access_points)
+        new_total_ap_number = len(self.access_point_finder.observed_access_points)
 
         if new_total_ap_number != self.total_ap_number:
-            self.access_points = self.access_point_finder.\
-                get_sorted_access_points()
+            self.access_points = self.access_point_finder.get_sorted_access_points()
             self.total_ap_number = len(self.access_points)
 
         # display the information to the user
@@ -659,8 +662,11 @@ class TuiApSel(object):
         ap_info.key = screen.getch()
         if ap_info.key == ord("\n") and self.total_ap_number != 0:
             # show message and exit
-            screen.addstr(ap_info.max_h - 2, 3, "YOU HAVE SELECTED " +
-                          self.access_points[ap_info.pos - 1].name)
+            screen.addstr(
+                ap_info.max_h - 2,
+                3,
+                "YOU HAVE SELECTED " + self.access_points[ap_info.pos - 1].name,
+            )
             screen.refresh()
             time.sleep(1)
             is_apsel_end = True
@@ -705,10 +711,12 @@ class TuiApSel(object):
         """
 
         # get the page boundary
-        page_boundary = list(range(1 + (ap_info.max_row *
-                                   (ap_info.page_number - 1)),
-                              ap_info.max_row + 1 +
-                              (ap_info.max_row * (ap_info.page_number - 1))))
+        page_boundary = list(
+            range(
+                1 + (ap_info.max_row * (ap_info.page_number - 1)),
+                ap_info.max_row + 1 + (ap_info.max_row * (ap_info.page_number - 1)),
+            )
+        )
 
         # remove previous content and draw border
         ap_info.box.erase()
@@ -716,10 +724,10 @@ class TuiApSel(object):
 
         # show the header
         header_fmt = "{0:30} {1:16} {2:3} {3:4} {4:9} {5:5} {6:20}"
-        header = header_fmt.format("ESSID", "BSSID", "CH", "PWR", "ENCR",
-                                   "CLIENTS", "VENDOR")
-        opt_str = ("Options:  [Esc] Quit  [Up Arrow] Move Up  "
-                   "[Down Arrow] Move Down")
+        header = header_fmt.format(
+            "ESSID", "BSSID", "CH", "PWR", "ENCR", "CLIENTS", "VENDOR"
+        )
+        opt_str = "Options:  [Esc] Quit  [Up Arrow] Move Up  [Down Arrow] Move Down"
 
         try:
             window_l = screen.getmaxyx()[1]
@@ -734,46 +742,54 @@ class TuiApSel(object):
             if self.total_ap_number == 0:
                 display_str = "No access point has been discovered yet!"
                 try:
-                    ap_info.box.addstr(1, 1,
-                                       display_string(ap_info.max_l - 1,
-                                                      display_str),
-                                       self.highlight_text)
+                    ap_info.box.addstr(
+                        1,
+                        1,
+                        display_string(ap_info.max_l - 1, display_str),
+                        self.highlight_text,
+                    )
                 except curses.error:
                     return
             # in case of at least one access point
             else:
                 # get the access point and it's vendor
                 access_point = self.access_points[item_position - 1]
-                vendor = self.mac_matcher.get_vendor_name(
-                    access_point.mac_address)
+                vendor = self.mac_matcher.get_vendor_name(access_point.mac_address)
 
                 # the display format for showing access points
-                display_text = ((
-                    "{0:30} {1:17} {2:2} {3:3}% {4:^8} {5:^5}"
-                    " {6:20}").format(
-                        access_point.name, access_point.mac_address,
-                        access_point.channel, access_point.signal_strength,
-                        access_point.encryption,
-                        access_point.client_count, vendor))
+                display_text = (
+                    "{0:30} {1:17} {2:2} {3:3}% {4:^8} {5:^5} {6:20}"
+                ).format(
+                    access_point.name,
+                    access_point.mac_address,
+                    access_point.channel,
+                    access_point.signal_strength,
+                    access_point.encryption,
+                    access_point.client_count,
+                    vendor,
+                )
                 # shows whether the access point should be highlighted or not
                 # based on our current position
                 print_row_number = item_position - ap_info.max_row * (
-                    ap_info.page_number - 1)
+                    ap_info.page_number - 1
+                )
 
                 # bypass the addstr exception
                 try:
-
                     if item_position == ap_info.pos:
-                        ap_info.box.addstr(print_row_number, 2,
-                                           display_string(
-                                               ap_info.max_l - 2,
-                                               display_text),
-                                           self.highlight_text)
+                        ap_info.box.addstr(
+                            print_row_number,
+                            2,
+                            display_string(ap_info.max_l - 2, display_text),
+                            self.highlight_text,
+                        )
                     else:
-                        ap_info.box.addstr(print_row_number, 2,
-                                           display_string(
-                                               ap_info.max_l - 2,
-                                               display_text), self.normal_text)
+                        ap_info.box.addstr(
+                            print_row_number,
+                            2,
+                            display_string(ap_info.max_l - 2, display_text),
+                            self.normal_text,
+                        )
                 except curses.error:
                     return
 
@@ -852,7 +868,7 @@ class TuiMain(object):
         match_str = r"(.*\s)(request from\s)(.*)(\sfor|with\s)(.*)"
         for request in requests:
             # match the information from the input string
-            match = re.match(match_str, request.decode('utf-8'))
+            match = re.match(match_str, request.decode("utf-8"))
             if match is None:
                 continue
 
@@ -867,16 +883,15 @@ class TuiMain(object):
             resource = match.group(5)
 
             start_col = 0
-            screen.addstr(start_row_num, start_col, '[')
+            screen.addstr(start_row_num, start_col, "[")
             start_col += 1
-            screen.addstr(start_row_num, start_col, '*', self.yellow_text)
+            screen.addstr(start_row_num, start_col, "*", self.yellow_text)
             start_col += 1
-            screen.addstr(start_row_num, start_col, '] ')
+            screen.addstr(start_row_num, start_col, "] ")
             start_col += 2
 
             # concatenate GET or POST
-            screen.addstr(start_row_num, start_col, request_type,
-                          self.yellow_text)
+            screen.addstr(start_row_num, start_col, request_type, self.yellow_text)
             start_col += len(request_type)
 
             # concatenate the word 'request from'
@@ -884,8 +899,7 @@ class TuiMain(object):
             start_col += len(request_from)
 
             # concatenate the ip address
-            screen.addstr(start_row_num, start_col, ip_address,
-                          self.yellow_text)
+            screen.addstr(start_row_num, start_col, ip_address, self.yellow_text)
             start_col += len(ip_address)
 
             # concatenate with or for
@@ -908,23 +922,21 @@ class TuiMain(object):
         :type http_output: str
         """
         start_col = 0
-        screen.addstr(start_row_num, start_col, '[')
+        screen.addstr(start_row_num, start_col, "[")
         start_col += 1
-        screen.addstr(start_row_num, start_col, '*', self.yellow_text)
+        screen.addstr(start_row_num, start_col, "*", self.yellow_text)
         start_col += 1
-        screen.addstr(start_row_num, start_col, '] ')
+        screen.addstr(start_row_num, start_col, "] ")
         start_col += 2
 
         # Display HTTP GET requests
-        screen.addstr(start_row_num, start_col, "",
-                        self.yellow_text)
+        screen.addstr(start_row_num, start_col, "", self.yellow_text)
         start_col += len("GET")
 
         # resource url
         screen.addstr(start_row_num, start_col, http_output, self.yellow_text)
 
         start_row_num += 1
-
 
     def display_info(self, screen, info):
         """
@@ -952,17 +964,23 @@ class TuiMain(object):
             screen.addstr(0, max_window_length - 30, "|")
             screen.addstr(1, max_window_length - 30, "|")
             # continue from the "Wifiphisher"
-            screen.addstr(1, max_window_length - 29,
-                          " Wifiphisher " + info.version, self.blue_text)
+            screen.addstr(
+                1,
+                max_window_length - 29,
+                " Wifiphisher " + info.version,
+                self.blue_text,
+            )
 
-            screen.addstr(2, max_window_length - 30,
-                          "|" + " ESSID: " + info.essid)
-            screen.addstr(3, max_window_length - 30,
-                          "|" + " Channel: " + info.channel)
-            screen.addstr(4, max_window_length - 30,
-                          "|" + " AP interface: " + info.ap_iface)
-            screen.addstr(5, max_window_length - 30,
-                          "|" + " Options: [Esc] Quit")
+            screen.addstr(2, max_window_length - 30, "|" + " ESSID: " + info.essid)
+            screen.addstr(
+                3,
+                max_window_length - 30,
+                "|" + " Channel: " + info.channel + " (" + info.band + ")",
+            )
+            screen.addstr(
+                4, max_window_length - 30, "|" + " AP interface: " + info.ap_iface
+            )
+            screen.addstr(5, max_window_length - 30, "|" + " Options: [Esc] Quit")
             screen.addstr(6, max_window_length - 30, "|" + "_" * 29)
 
             # Print the extensions section
@@ -988,9 +1006,10 @@ class TuiMain(object):
                 row_counter += 1
             # Print the http request section
             screen.addstr(13, 0, "HTTP requests: ", self.blue_text)
-            if os.path.isfile('/tmp/wifiphisher-http-requests.txt'):
+            if os.path.isfile("/tmp/wifiphisher-http-requests.txt"):
                 http_output = check_output(
-                    ['tail', '-5', '/tmp/wifiphisher-http-requests.txt'])
+                    ["tail", "-5", "/tmp/wifiphisher-http-requests.txt"]
+                )
                 self.print_http_requests(screen, 14, http_output)
                 self.print_http_requests_sniffer(screen, 14, http_output)
         except curses.error:
@@ -1033,5 +1052,7 @@ def line_splitter(num_of_words, line):
     :rtype: tuple
     """
     pieces = line.split()
-    return (" ".join(pieces[i:i + num_of_words])
-            for i in range(0, len(pieces), num_of_words))
+    return (
+        " ".join(pieces[i : i + num_of_words])
+        for i in range(0, len(pieces), num_of_words)
+    )

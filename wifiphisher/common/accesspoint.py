@@ -1,7 +1,6 @@
 """This module was made to fork the rogue access point."""
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import os
 import subprocess
@@ -11,6 +10,7 @@ from subprocess import check_output
 import roguehostapd.apctrl as apctrl
 import roguehostapd.config.hostapdconfig as hostapdconfig
 import wifiphisher.common.constants as constants
+import wifiphisher.common.globals as universal
 import wifiphisher.common.victim as victim
 
 
@@ -49,52 +49,64 @@ class AccessPoint(object):
     def start_dhcp_dns(self):
         # type: () -> None
         """Start the dhcp server."""
-        config = ('no-resolv\n' 'interface=%s\n' 'dhcp-range=%s\n')
+        config = "no-resolv\ninterface=%s\ndhcp-range=%s\n"
 
-        with open(self.dns_conf_path, 'w') as dhcpconf:
+        with open(self.dns_conf_path, "w") as dhcpconf:
             dhcpconf.write(config % (self.interface, constants.DHCP_LEASE))
 
-        with open(self.dns_conf_path, 'a+') as dhcpconf:
+        with open(self.dns_conf_path, "a+") as dhcpconf:
             if self.internet_interface:
-                dhcpconf.write("server=%s" % (constants.PUBLIC_DNS, ))
+                dhcpconf.write("server=%s" % (constants.PUBLIC_DNS,))
             else:
                 dhcpconf.write("address=/google.com/172.217.5.78\n")
                 dhcpconf.write("address=/clients3.google.com/172.217.11.174\n")
-                dhcpconf.write("address=/#/%s " % (constants.NETWORK_GW_IP, ))
+                dhcpconf.write("address=/#/%s " % (constants.NETWORK_GW_IP,))
         # catch the exception if dnsmasq is not installed
         try:
             subprocess.Popen(
-                ['dnsmasq', '-C', self.dns_conf_path],
+                ["dnsmasq", "-C", self.dns_conf_path],
                 stdout=subprocess.PIPE,
-                stderr=constants.DN)
+                stderr=constants.DN,
+            )
         except OSError:
-            print("[{}!{}] dnsmasq is not installed!".format(
-                constants.R, constants.W))
+            print("[{}!{}] dnsmasq is not installed!".format(constants.R, constants.W))
             raise Exception
 
         subprocess.Popen(
-            ['ifconfig', str(self.interface), 'mtu', '1400'],
+            ["ifconfig", str(self.interface), "mtu", "1400"],
             stdout=constants.DN,
-            stderr=constants.DN)
+            stderr=constants.DN,
+        )
 
         subprocess.Popen(
             [
-                'ifconfig',
-                str(self.interface), 'up', constants.NETWORK_GW_IP, 'netmask',
-                constants.NETWORK_MASK
+                "ifconfig",
+                str(self.interface),
+                "up",
+                constants.NETWORK_GW_IP,
+                "netmask",
+                constants.NETWORK_MASK,
             ],
             stdout=constants.DN,
-            stderr=constants.DN)
+            stderr=constants.DN,
+        )
         # Give it some time to avoid "SIOCADDRT: Network is unreachable"
         time.sleep(1)
         # Make sure that we have set the network properly.
-        proc = subprocess.check_output(['ifconfig', str(self.interface)])
-        if constants.NETWORK_GW_IP not in proc.decode('utf-8'):
+        proc = subprocess.check_output(["ifconfig", str(self.interface)])
+        if constants.NETWORK_GW_IP not in proc.decode("utf-8"):
             return False
-        subprocess.call(('route add -net %s netmask %s gw %s' %
-                         (constants.NETWORK_IP, constants.NETWORK_MASK,
-                          constants.NETWORK_GW_IP)),
-                        shell=True)
+        subprocess.call(
+            (
+                "route add -net %s netmask %s gw %s"
+                % (
+                    constants.NETWORK_IP,
+                    constants.NETWORK_MASK,
+                    constants.NETWORK_GW_IP,
+                )
+            ),
+            shell=True,
+        )
 
     def start(self, disable_karma=False):
         """Start the softAP."""
@@ -103,10 +115,14 @@ class AccessPoint(object):
             "ssid": self.essid,
             "interface": self.interface,
             "channel": self.channel,
+            "hw_mode": universal.channel_to_hw_mode(self.channel),
+            "ieee80211n": 1,
             "deny_macs": self.deny_mac_addrs,
         }
+        if universal.channel_to_hw_mode(self.channel) == "a":
+            hostapd_config["ieee80211ac"] = 1
         if self.presharedkey:
-            hostapd_config['wpa2password'] = self.presharedkey
+            hostapd_config["wpa2password"] = self.presharedkey
         self.hostapd_object = apctrl.Hostapd()
         if not self.force_hostapd:
             try:
@@ -116,9 +132,9 @@ class AccessPoint(object):
                 # Enable WPSPBC KARMA attack
                 hostapd_config["wpspbc"] = True
                 hostapd_options = {
-                    'mute': True,
-                    'timestamp': False,
-                    "eloop_term_disable": True
+                    "mute": True,
+                    "timestamp": False,
+                    "eloop_term_disable": True,
                 }
                 self.hostapd_object.start(hostapd_config, hostapd_options)
             except KeyboardInterrupt:
@@ -131,7 +147,9 @@ class AccessPoint(object):
                     " --force-hostapd option to use hostapd but please note that using"
                     " Wifiphisher with hostapd instead of roguehostapd will turn off many"
                     " significant features of the tool.".format(
-                        constants.R, constants.W))
+                        constants.R, constants.W
+                    )
+                )
                 # just raise exception when hostapd is not installed
                 raise Exception
         else:
@@ -139,47 +157,50 @@ class AccessPoint(object):
             self.hostapd_object.create_hostapd_conf_file(hostapd_config, {})
             try:
                 self.hostapd_object = subprocess.Popen(
-                    ['hostapd', hostapdconfig.ROGUEHOSTAPD_RUNTIME_CONFIGPATH],
+                    ["hostapd", hostapdconfig.ROGUEHOSTAPD_RUNTIME_CONFIGPATH],
                     stdout=constants.DN,
-                    stderr=constants.DN)
+                    stderr=constants.DN,
+                )
             except OSError:
                 print(
                     "[{}!{}] hostapd is not installed in the system! Please download it"
                     " using your favorite package manager (e.g. apt-get install hostapd) and "
-                    "rerun the script.".format(constants.R, constants.W))
+                    "rerun the script.".format(constants.R, constants.W)
+                )
                 # just raise exception when hostapd is not installed
                 raise Exception
 
             time.sleep(2)
             if self.hostapd_object.poll() is not None:
-                print("[{}!{}] hostapd failed to lunch!".format(
-                    constants.R, constants.W))
+                print(
+                    "[{}!{}] hostapd failed to lunch!".format(constants.R, constants.W)
+                )
                 raise Exception
 
     def on_exit(self):
         # type: () -> None
         """Clean up the resoures when exits."""
-        subprocess.call('pkill dnsmasq', shell=True)
+        subprocess.call("pkill dnsmasq", shell=True)
         try:
             self.hostapd_object.stop()
         except BaseException:
-            subprocess.call('pkill hostapd', shell=True)
+            subprocess.call("pkill hostapd", shell=True)
             if os.path.isfile(hostapdconfig.ROGUEHOSTAPD_RUNTIME_CONFIGPATH):
                 os.remove(hostapdconfig.ROGUEHOSTAPD_RUNTIME_CONFIGPATH)
             if os.path.isfile(hostapdconfig.ROGUEHOSTAPD_DENY_MACS_CONFIGPATH):
                 os.remove(hostapdconfig.ROGUEHOSTAPD_DENY_MACS_CONFIGPATH)
 
-        if os.path.isfile('/var/lib/misc/dnsmasq.leases'):
-            os.remove('/var/lib/misc/dnsmasq.leases')
-        if os.path.isfile('/tmp/dhcpd.conf'):
-            os.remove('/tmp/dhcpd.conf')
+        if os.path.isfile("/var/lib/misc/dnsmasq.leases"):
+            os.remove("/var/lib/misc/dnsmasq.leases")
+        if os.path.isfile("/tmp/dhcpd.conf"):
+            os.remove("/tmp/dhcpd.conf")
         # sleep 2 seconds to wait all the hostapd process is
         # killed
         time.sleep(2)
 
     def read_connected_victims_file(self):
         """Update the Victims dictionary by reading dnsmasq.leases file."""
-        if (not os.path.isfile('/var/lib/misc/dnsmasq.leases')):
+        if not os.path.isfile("/var/lib/misc/dnsmasq.leases"):
             return
         with open("/var/lib/misc/dnsmasq.leases", "r") as dnsmasq_leases:
             for line in dnsmasq_leases:

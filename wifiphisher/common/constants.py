@@ -6,8 +6,9 @@ import os
 
 dir_of_executable = os.path.dirname(__file__)
 path_to_project_root = os.path.abspath(
-    os.path.join(dir_of_executable, '../../wifiphisher'))
-dir_of_data = path_to_project_root + '/data/'
+    os.path.join(dir_of_executable, "../../wifiphisher")
+)
+dir_of_data = path_to_project_root + "/data/"
 phishing_pages_dir = dir_of_data + "phishing-pages/"
 
 # Basic configuration
@@ -23,9 +24,11 @@ EXTENSIONS_LOADPATH = "wifiphisher.extensions."
 PORT = 8080
 SSL_PORT = 443
 CHANNEL = 6
+DEFAULT_2G_CHANNEL = 6
+DEFAULT_5G_CHANNEL = 36
 WEBSITE = "https://wifiphisher.org"
 PUBLIC_DNS = "8.8.8.8"
-PEM = dir_of_data + 'cert/server.pem'
+PEM = dir_of_data + "cert/server.pem"
 SCENARIO_HTML_DIR = "html/"
 LOGOS_DIR = dir_of_data + "logos/"
 LOCS_DIR = dir_of_data + "locs/"
@@ -43,19 +46,37 @@ WIFI_IPV6MCAST1 = "33:33:00:"
 WIFI_IPV6MCAST2 = "33:33:ff:"
 WIFI_SPANNINGTREE = "01:80:c2:00:00:00"
 WIFI_MULTICAST = "01:00:5e:"
-NON_CLIENT_ADDRESSES = set([
-    WIFI_BROADCAST, WIFI_INVALID, WIFI_MULTICAST, WIFI_IPV6MCAST1,
-    WIFI_IPV6MCAST2, WIFI_SPANNINGTREE, None
-])
-DEFAULT_OUI = '00:00:00'
+NON_CLIENT_ADDRESSES = set(
+    [
+        WIFI_BROADCAST,
+        WIFI_INVALID,
+        WIFI_MULTICAST,
+        WIFI_IPV6MCAST1,
+        WIFI_IPV6MCAST2,
+        WIFI_SPANNINGTREE,
+        None,
+    ]
+)
+DEFAULT_OUI = "00:00:00"
 LINES_OUTPUT = 3
-DN = open(os.devnull, 'w')
+DN = open(os.devnull, "w")
 INTERFERING_PROCS = [
-    "wpa_action", "wpa_supplicant", "wpa_cli", "dhclient", "ifplugd", "dhcdbd",
-    "dhcpcd", "udhcpc", "avahi-autoipd", "avahi-daemon", "wlassistant",
-    "wifibox", "NetworkManager", "knetworkmanager"
+    "wpa_action",
+    "wpa_supplicant",
+    "wpa_cli",
+    "dhclient",
+    "ifplugd",
+    "dhcdbd",
+    "dhcpcd",
+    "udhcpc",
+    "avahi-autoipd",
+    "avahi-daemon",
+    "wlassistant",
+    "wifibox",
+    "NetworkManager",
+    "knetworkmanager",
 ]
-DNS_CONF_PATH = '/tmp/dnsmasq.conf'
+DNS_CONF_PATH = "/tmp/dnsmasq.conf"
 NEW_YEAR = "01-01"
 BIRTHDAY = "01-05"
 
@@ -97,49 +118,49 @@ OP_MODE8 = 0x8
 AP_RATES = "\x0c\x12\x18\x24\x30\x48\x60\x6c"
 
 # Console colors
-W = '\033[0m'  # white (normal)
-R = '\033[31m'  # red
-G = '\033[32m'  # green
-O = '\033[33m'  # orange
-B = '\033[34m'  # blue
-P = '\033[35m'  # purple
-C = '\033[36m'  # cyan
-GR = '\033[37m'  # gray
-T = '\033[93m'  # tan
+W = "\033[0m"  # white (normal)
+R = "\033[31m"  # red
+G = "\033[32m"  # green
+O = "\033[33m"  # orange
+B = "\033[34m"  # blue
+P = "\033[35m"  # purple
+C = "\033[36m"  # cyan
+GR = "\033[37m"  # gray
+T = "\033[93m"  # tan
 
 # Logging configurations
 # possible values for debug levels are:
 # CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET
-LOG_LEVEL = 'INFO'
-LOG_FILEPATH = 'wifiphisher.log'
+LOG_LEVEL = "INFO"
+LOG_FILEPATH = "wifiphisher.log"
 LOGGING_CONFIG = {
-    'version': 1,
+    "version": 1,
     # Defined the handlers
-    'handlers': {
-        'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'level': LOG_LEVEL,
-            'formatter': 'detailed',
-            'filename': LOG_FILEPATH,
-            'backupCount': 3,
+    "handlers": {
+        "file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": LOG_LEVEL,
+            "formatter": "detailed",
+            "filename": LOG_FILEPATH,
+            "backupCount": 3,
         },
     },
     # fomatters for the handlers
-    'formatters': {
-        'detailed': {
-            'format': '%(asctime)s - %(name) 32s - %(levelname)s - %(message)s'
+    "formatters": {
+        "detailed": {
+            "format": "%(asctime)s - %(name) 32s - %(levelname)s - %(message)s"
         },
     },
-    'root': {
-        'level': 'DEBUG',
-        'handlers': [
-            'file',
+    "root": {
+        "level": "DEBUG",
+        "handlers": [
+            "file",
         ],
     },
     "loggers": {},
-    'disable_existing_loggers': False
+    "disable_existing_loggers": False,
 }
-CREDENTIALS_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+CREDENTIALS_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # Phishinghttp
 VALID_POST_CONTENT_TYPE = "application/x-www-form-urlencoded"
@@ -147,14 +168,14 @@ REGEX_PWD = "password|pwd|pass"
 REGEX_UNAME = "username|uname|name"
 
 # TUI
-MAIN_TUI_ATTRS = 'version essid channel ap_iface em phishinghttp args'
-AP_SEL_ATTRS = 'interface mac_matcher network_manager args'
+MAIN_TUI_ATTRS = "version essid channel band ap_iface em phishinghttp args"
+AP_SEL_ATTRS = "interface mac_matcher network_manager args"
 
 # Fourway handshake extension
 CONST_A = "Pairwise key expansion"
 
 # Rogue AP related
-DENY_MACS_PATH = '/tmp/hostapd.deny'
+DENY_MACS_PATH = "/tmp/hostapd.deny"
 
 # Known Beacons
 KB_INTERVAL = 20
