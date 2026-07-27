@@ -57,7 +57,7 @@ NON_CLIENT_ADDRESSES = set(
         None,
     ]
 )
-DEFAULT_OUI = "00:00:00"
+DEFAULT_OUI = "02:00:00"
 LINES_OUTPUT = 3
 DN = open(os.devnull, "w")
 INTERFERING_PROCS = [
