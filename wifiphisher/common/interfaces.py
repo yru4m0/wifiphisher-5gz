@@ -848,7 +848,11 @@ def is_add_vif_required(main_interface, internet_interface, wpspbc_assoc_interfa
     use_one_phy = False
     # check the user-provided args.interface
     if main_interface:
-        card = pyw.getcard(main_interface)
+        try:
+            card = pyw.getcard(main_interface)
+        except pyric.error:
+            perfect_card, use_one_phy = get_perfect_card(phy_to_vifs, vif_score_tuples)
+            return perfect_card, use_one_phy
         phy_number = card.phy
         if phy_to_vifs.get(card.phy) and phy_to_vifs[card.phy][0][1] == 2:
             perfect_card = card
