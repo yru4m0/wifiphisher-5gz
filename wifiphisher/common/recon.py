@@ -10,7 +10,30 @@ import wifiphisher.common.globals as universal
 from wifiphisher.common.constants import LOCS_DIR, NON_CLIENT_ADDRESSES
 from wifiphisher.common.interfaces import NetworkManager
 
-LOGGER = getLogger(__name__)
+
+def _freq_to_channel(freq):
+    if freq < 2412:
+        return None
+    if freq <= 2484:
+        return {
+            2412: 1,
+            2417: 2,
+            2422: 3,
+            2427: 4,
+            2432: 5,
+            2437: 6,
+            2442: 7,
+            2447: 8,
+            2452: 9,
+            2457: 10,
+            2462: 11,
+            2467: 12,
+            2472: 13,
+            2484: 14,
+        }.get(freq)
+    if freq >= 5180:
+        return (freq - 5000) // 5
+    return None
 
 
 class AccessPoint(object):
@@ -92,14 +115,19 @@ class AccessPointFinder(object):
         Access points which are malformed or not in 2G channel list are
         excluded.
         """
-        elt_section = packet[dot11.Dot11Elt]
-        try:
-            channel = str(ord(packet[dot11.Dot11Elt][2].info))
-            if int(channel) not in universal.get_channels_for_band(
-                universal.channel_to_band(channel)
-            ):
+        ds_elt = packet.getlayer(dot11.Dot11Elt, ID=3)
+        if ds_elt is not None:
+            channel = str(ord(ds_elt.info))
+        elif hasattr(packet, "ChannelFrequency") and packet.ChannelFrequency:
+            channel = _freq_to_channel(packet.ChannelFrequency)
+            if channel is None:
                 return
-        except (TypeError, IndexError):
+            channel = str(channel)
+        else:
+            return
+        if int(channel) not in universal.get_channels_for_band(
+            universal.channel_to_band(channel)
+        ):
             return
 
         mac_address = packet.addr3
@@ -114,7 +142,7 @@ class AccessPointFinder(object):
         # get the name of the access point
         # if the name is no utf8 compatible use pre set name
         try:
-            name = elt_section.info.decode("utf8")
+            name = packet[dot11.Dot11Elt].info.decode("utf8")
         except UnicodeDecodeError:
             name = non_decodable_name
 
