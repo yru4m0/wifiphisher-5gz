@@ -1,0 +1,2 @@
+
+have template per known company (Orange, Free, SFR, Bouygues) that is choosen automatically by the name of the network (eg. Livebox -> Orange, etc...)

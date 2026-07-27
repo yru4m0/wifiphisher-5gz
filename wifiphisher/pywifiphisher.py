@@ -33,7 +33,6 @@ import wifiphisher.common.tui as tui
 import wifiphisher.common.victim as victim
 import wifiphisher.common.sniffer as sniffer
 
-from six.moves import range, input
 
 from wifiphisher.common.constants import (
     BIRTHDAY,
