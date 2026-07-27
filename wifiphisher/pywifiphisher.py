@@ -298,6 +298,12 @@ def parse_args():
         default="2g",
         help="Choose the Wi-Fi band: 2g (2.4GHz) or 5g (5GHz). Default: 2g",
     )
+    parser.add_argument(
+        "--channel",
+        type=int,
+        default=None,
+        help="Set the target AP channel (used with --essid). Default: 6 (2g) or 36 (5g)",
+    )
 
     return parser.parse_args()
 
@@ -730,9 +736,12 @@ class WifiphisherEngine:
 
         if args.essid:
             essid = args.essid
-            channel = str(
-                DEFAULT_5G_CHANNEL if args.band == "5g" else DEFAULT_2G_CHANNEL
-            )
+            if args.channel:
+                channel = str(args.channel)
+            else:
+                channel = str(
+                    DEFAULT_5G_CHANNEL if args.band == "5g" else DEFAULT_2G_CHANNEL
+                )
             # We don't have target attacking MAC in frenzy mode
             # That is we deauth all the BSSIDs that being sniffed
             target_ap_mac = None
