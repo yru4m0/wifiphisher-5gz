@@ -37,7 +37,7 @@ Homepage = "https://github.com/wifiphisher/wifiphisher"
 [project.scripts]
 wifiphisher = "wifiphisher.pywifiphisher:run"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest",
     "ruff",
