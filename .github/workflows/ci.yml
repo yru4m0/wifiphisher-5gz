@@ -1,0 +1,21 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: sudo apt-get update && sudo apt-get install -y libnl-3-dev libnl-genl-3-dev libssl-dev hostapd dnsmasq
+      - name: Install roguehostapd
+        run: uv pip install https://github.com/yru4m0/roguehostapd-5gz.git
+      - run: uv sync --dev
+      - run: uv run ruff check .
+      - run: uv run pytest

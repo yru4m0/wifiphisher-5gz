@@ -30,7 +30,7 @@ WAIT_CNT = 3
 WPS_2_STR = {
     WPS_IDLE: "WPS_IDLE",
     WPS_CONNECTING: "WPS_CONNECTING",
-    WPS_CONNECTED: "WPS_CONNECTED"
+    WPS_CONNECTED: "WPS_CONNECTED",
 }
 
 
@@ -40,12 +40,12 @@ def kill_wpa_supplicant():
     :return: None
     :rtype: None
     """
-    proc = subprocess.Popen(['ps', '-A'], stdout=subprocess.PIPE)
+    proc = subprocess.Popen(["ps", "-A"], stdout=subprocess.PIPE)
     output = proc.communicate()[0]
     # total processes in the system
     sys_procs = output.splitlines()
     for proc in sys_procs:
-        if 'wpa_supplicant' in proc:
+        if "wpa_supplicant" in proc:
             pid = int(proc.split(None, 1)[0])
             os.kill(pid, signal.SIGKILL)
 
@@ -103,22 +103,19 @@ class Wpspbc(object):
         elt_section = packet[dot11.Dot11Elt]
         while isinstance(elt_section, dot11.Dot11Elt):
             # check if WPS IE exists
-            if elt_section.ID == 221 and\
-                    elt_section.info.startswith("\x00P\xf2\x04"):
+            if elt_section.ID == 221 and elt_section.info.startswith("\x00P\xf2\x04"):
                 # strip the starting 4 bytes
                 wps_ie_array = [ord(val) for val in elt_section.info[4:]]
                 pos = 0
                 # start looping to find the WPS PBC IE
                 while pos < len(wps_ie_array):
-                    if wps_ie_array[pos] == 0x10 and wps_ie_array[pos
-                                                                  + 1] == 0x12:
+                    if wps_ie_array[pos] == 0x10 and wps_ie_array[pos + 1] == 0x12:
                         return True
                     else:
-                        data_len = (
-                            wps_ie_array[pos + 2] << 8) + wps_ie_array[pos + 3]
+                        data_len = (wps_ie_array[pos + 2] << 8) + wps_ie_array[pos + 3]
                         # jump to the next data element by adding
                         # the len of type/length/data
-                        pos += (2 + 2 + data_len)
+                        pos += 2 + 2 + data_len
                 break
             elt_section = elt_section.payload
         return False
@@ -143,9 +140,11 @@ class Wpspbc(object):
         :rtype: None
         """
 
-        logger.info("wps state is transiting from %s to %s",\
-                    WPS_2_STR[self.get_wps_state()],
-                    WPS_2_STR[new_state])
+        logger.info(
+            "wps state is transiting from %s to %s",
+            WPS_2_STR[self.get_wps_state()],
+            WPS_2_STR[new_state],
+        )
         self._wps_state = new_state
 
     def is_associated(self):
@@ -156,13 +155,13 @@ class Wpspbc(object):
         :return: True if the interface is connected else False
         :rtype: bool
         """
-        proc = subprocess.Popen(['wpa_cli', 'status'], stdout=subprocess.PIPE)
-        output = proc.communicate()[0]
+        proc = subprocess.Popen(["wpa_cli", "status"], stdout=subprocess.PIPE)
+        output = proc.communicate()[0].decode()
         # not only check the state is in COMPLETED but also needs to check
         # if we have associated to our own rogueap if the target AP is being
         # shut down (i.e. supplicant will connect to the OPEN rogue AP if the
         # target AP is OPEN)
-        if 'COMPLETED' in output and self._data.rogue_ap_mac not in output:
+        if "COMPLETED" in output and self._data.rogue_ap_mac not in output:
             return True
         return False
 
@@ -177,23 +176,24 @@ class Wpspbc(object):
         """
         if not self._is_supplicant_running:
             self._is_supplicant_running = True
-            with open("/tmp/wpa_supplicant.conf", 'w') as conf:
+            with open("/tmp/wpa_supplicant.conf", "w") as conf:
                 conf.write("ctrl_interface=/var/run/wpa_supplicant\n")
             try:
                 proc = subprocess.Popen(
                     [
-                        'wpa_supplicant',
-                        '-i' + self._data.args.wpspbc_assoc_interface,
-                        '-Dnl80211', '-c/tmp/wpa_supplicant.conf'
+                        "wpa_supplicant",
+                        "-i" + self._data.args.wpspbc_assoc_interface,
+                        "-Dnl80211",
+                        "-c/tmp/wpa_supplicant.conf",
                     ],
-                    stdout=subprocess.PIPE)
+                    stdout=subprocess.PIPE,
+                )
                 time.sleep(2)
                 if proc.poll() is not None:
                     logger.error("supplicant lunches fail!!")
-                proc = subprocess.Popen(
-                    ['wpa_cli', 'wps_pbc'], stdout=subprocess.PIPE)
+                proc = subprocess.Popen(["wpa_cli", "wps_pbc"], stdout=subprocess.PIPE)
                 output = proc.communicate()[0]
-                if 'OK' not in output:
+                if "OK" not in output:
                     logger.error(
                         "CONFIG_WPS should be ENABLED when compile wpa_supplicant!!"
                     )
@@ -218,8 +218,10 @@ class Wpspbc(object):
         :rtype: None
         """
         # check if the frame has wps pbc IE
-        if packet.haslayer(dot11.Dot11Beacon) and\
-                packet.addr3 == self._data.target_ap_bssid:
+        if (
+            packet.haslayer(dot11.Dot11Beacon)
+            and packet.addr3 == self._data.target_ap_bssid
+        ):
             has_pbc = self.does_have_wpspbc_ie(packet)
             if self.get_wps_state() == WPS_IDLE:
                 if has_pbc:
@@ -325,7 +327,7 @@ class Wpspbc(object):
         :rtype: None
         """
         self.set_wps_state(WPS_IDLE)
-        if os.path.isfile('/tmp/wpa_supplicant.conf'):
-            os.remove('/tmp/wpa_supplicant.conf')
+        if os.path.isfile("/tmp/wpa_supplicant.conf"):
+            os.remove("/tmp/wpa_supplicant.conf")
         if self._is_supplicant_running:
             kill_wpa_supplicant()

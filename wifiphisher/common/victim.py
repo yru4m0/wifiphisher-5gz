@@ -48,7 +48,7 @@ class Victim(object):
             raise Exception("Error: No such mac address exists in dictionary")
 
 
-class Victims():
+class Victims:
     """Singleton class that manages all of the victims."""
 
     # Instance will be stored here.
@@ -68,7 +68,6 @@ class Victims():
         else:
             Victims.__instance = self
             self.victims_dic = {}
-            self.url_file = open(constants.URL_TO_OS_FILE, "r")
 
     def add_to_victim_dic(self, victim_obj):
         """Add new victim to the dictionary."""
@@ -89,15 +88,22 @@ class Victims():
         for value in list(self.victims_dic.values()):
             mac_timestamp[value.vmac_address] = value.timestamp
 
-        sorted_mac_timestamp = sorted(list(mac_timestamp.items()),
-                                      key=lambda p: float(p[1]))
+        sorted_mac_timestamp = sorted(
+            list(mac_timestamp.items()), key=lambda p: float(p[1])
+        )
 
         for item in reversed(sorted_mac_timestamp):
             if max_victim_counter >= 5:
                 return most_recent_dic
             victim_obj = self.victims_dic[item[0]]
-            victim_value = '\t' + victim_obj.ip_address + '\t' \
-                + victim_obj.vendor + '\t' + victim_obj.os
+            victim_value = (
+                "\t"
+                + victim_obj.ip_address
+                + "\t"
+                + victim_obj.vendor
+                + "\t"
+                + victim_obj.os
+            )
             most_recent_dic[victim_obj.vmac_address] = victim_value
             max_victim_counter += 1
         return most_recent_dic
@@ -118,12 +124,13 @@ class Victims():
         :type url: str
 
         """
-        self.url_file.seek(0)
-        for line in self.url_file:
-            line = line.split("|")
-            url_check = line[1].strip()
-            os = line[0].strip()
-            if url_check in url:
-                for key in self.victims_dic:
-                    if ip_address == self.victims_dic[key].ip_address:
-                        self.victims_dic[key].os = os
+        with open(constants.URL_TO_OS_FILE, "r") as url_file:
+            url_file.seek(0)
+            for line in url_file:
+                line = line.split("|")
+                url_check = line[1].strip()
+                os = line[0].strip()
+                if url_check in url:
+                    for key in self.victims_dic:
+                        if ip_address == self.victims_dic[key].ip_address:
+                            self.victims_dic[key].os = os

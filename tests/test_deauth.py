@@ -1,29 +1,30 @@
-# pylint: skip-file
-""" This module tests the deauth module in extensions """
-import collections
 import unittest
+import collections
 from collections import defaultdict
-
-import mock
+from unittest import mock
 import scapy.layers.dot11 as dot11
 import wifiphisher.common.constants as constants
 import wifiphisher.extensions.deauth as deauth
 
 
 class TestDeauth(unittest.TestCase):
-    """ Tests Deauth class """
+    """Tests Deauth class"""
 
     def setUp(self):
-        """ Set up the tests """
+        """Set up the tests"""
 
-        essid = dot11.Dot11Elt(ID='SSID', info="")
-        rates = dot11.Dot11Elt(ID='Rates', info="\x03\x12\x96\x18\x24\x30\x48\x60")
-        dsset = dot11.Dot11Elt(ID='DSset', info='\x06')
+        essid = dot11.Dot11Elt(ID="SSID", info="")
+        rates = dot11.Dot11Elt(ID="Rates", info="\x03\x12\x96\x18\x24\x30\x48\x60")
+        dsset = dot11.Dot11Elt(ID="DSset", info="\x06")
         self.packet = dot11.RadioTap() / dot11.Dot11() / essid / rates / dsset
 
-        custom_tuple = collections.namedtuple("test",
-                                              ("target_ap_bssid target_ap_channel rogue_ap_mac args "
-                                               "target_ap_essid is_freq_hop_allowed"))
+        custom_tuple = collections.namedtuple(
+            "test",
+            (
+                "target_ap_bssid target_ap_channel rogue_ap_mac args "
+                "target_ap_essid is_freq_hop_allowed"
+            ),
+        )
 
         self.target_channel = "6"
         self.target_bssid = "BB:BB:BB:BB:BB:BB"
@@ -34,10 +35,22 @@ class TestDeauth(unittest.TestCase):
         self.args.channel_monitor = False
         self.args.deauth_channels = []
 
-        data0 = custom_tuple(self.target_bssid, self.target_channel, self.rogue_mac,
-                             self.args, self.target_essid, True)
-        data1 = custom_tuple(None, self.target_channel, self.rogue_mac,
-                             self.args, self.target_essid, True)
+        data0 = custom_tuple(
+            self.target_bssid,
+            self.target_channel,
+            self.rogue_mac,
+            self.args,
+            self.target_essid,
+            True,
+        )
+        data1 = custom_tuple(
+            None,
+            self.target_channel,
+            self.rogue_mac,
+            self.args,
+            self.target_essid,
+            True,
+        )
 
         self.deauth_obj0 = deauth.Deauth(data0)
         self.deauth_obj1 = deauth.Deauth(data1)
@@ -77,10 +90,17 @@ class TestDeauth(unittest.TestCase):
         # setup the packet
         sender = "00:00:00:00:00:00"
         receiver = "11:11:11:11:11:11"
-        essid = dot11.Dot11Elt(ID='SSID', info="")
-        rates = dot11.Dot11Elt(ID='Rates', info="\x03\x12\x96\x18\x24\x30\x48\x60")
-        dsset = dot11.Dot11Elt(ID='DSset', info='\x06')
-        packet = dot11.RadioTap() / dot11.Dot11() / dot11.Dot11Beacon() / essid / rates / dsset
+        essid = dot11.Dot11Elt(ID="SSID", info="")
+        rates = dot11.Dot11Elt(ID="Rates", info="\x03\x12\x96\x18\x24\x30\x48\x60")
+        dsset = dot11.Dot11Elt(ID="DSset", info="\x06")
+        packet = (
+            dot11.RadioTap()
+            / dot11.Dot11()
+            / dot11.Dot11Beacon()
+            / essid
+            / rates
+            / dsset
+        )
 
         packet.addr1 = receiver
         packet.addr2 = sender
@@ -94,8 +114,7 @@ class TestDeauth(unittest.TestCase):
 
         # check channel: target channel should be one key of
         # the result
-        self.assertEqual(self.target_channel in pkts_to_send, True,
-                         message0)
+        self.assertEqual(self.target_channel in pkts_to_send, True, message0)
 
         # check the packets
         # check the disassoction packet
@@ -234,8 +253,7 @@ class TestDeauth(unittest.TestCase):
         message1 = "Failed to return an correct packets"
 
         # check channel
-        self.assertEqual(self.target_channel in pkts_to_send0, True,
-                         message0)
+        self.assertEqual(self.target_channel in pkts_to_send0, True, message0)
 
         # check the packets for the first client
         # check the disassociation packet
@@ -820,7 +838,7 @@ class TestDeauth(unittest.TestCase):
         Get the target attacking bssid for the speficic ESSID
         when --essid is not used
         """
-        essid = dot11.Dot11Elt(ID='SSID', info="Evil")
+        essid = dot11.Dot11Elt(ID="SSID", info="Evil")
         packet = dot11.RadioTap() / dot11.Dot11() / dot11.Dot11Beacon() / essid
         packet.addr3 = "99:99:99:99:99:99"
         self.deauth_obj0._data.args.deauth_essid = "Evil"
@@ -834,12 +852,12 @@ class TestDeauth(unittest.TestCase):
         """
         Assign essid to a constant when it is utf-8 non-decodable
         """
-        essid = dot11.Dot11Elt(ID='SSID', info='\x99\x87\x33')
+        essid = dot11.Dot11Elt(ID="SSID", info="\x99\x87\x33")
         packet = dot11.RadioTap() / dot11.Dot11() / dot11.Dot11Beacon() / essid
         packet.addr3 = "99:99:99:99:99:99"
         result = self.deauth_obj0._is_target(packet)
         expected = False
-        message = 'Fail to raise the UnicodeDecodeError for non-printable essid'
+        message = "Fail to raise the UnicodeDecodeError for non-printable essid"
         self.assertEqual(result, expected, message)
 
     def test_channel_deauth(self):
@@ -847,7 +865,7 @@ class TestDeauth(unittest.TestCase):
         Test that we are deauthing on the right channels each time.
         """
 
-        # In obj0 we are targetting a specific AP 
+        # In obj0 we are targetting a specific AP
         # Default behavior (e.g. through AP selection phase)
         result = self.deauth_obj0.send_channels()
         expected = [str(self.deauth_obj0._data.target_ap_channel)]
@@ -857,6 +875,6 @@ class TestDeauth(unittest.TestCase):
         # In obj1 we set --deauth-channels 1 2 3 4
         self.deauth_obj1._data.args.deauth_channels = [1, 2, 3, 4]
         result = self.deauth_obj1.send_channels()
-        expected = ['1', '2', '3', '4']
+        expected = ["1", "2", "3", "4"]
         message = "Fail to receive right channels"
         self.assertEqual(result, expected, message)

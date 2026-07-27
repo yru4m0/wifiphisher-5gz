@@ -6,15 +6,14 @@ import os
 import shutil
 import sys
 import unittest
-
-import mock
+from unittest import mock
 import scapy.layers.dot11 as dot11
 import wifiphisher.common.constants as constants
 import wifiphisher.common.extensions as extensions
 import wifiphisher.common.interfaces as interfaces
 
 dir_of_executable = os.path.dirname(__file__)
-path_to_project_root = os.path.abspath(os.path.join(dir_of_executable, '..'))
+path_to_project_root = os.path.abspath(os.path.join(dir_of_executable, ".."))
 sys.path.insert(0, path_to_project_root)
 os.chdir(path_to_project_root)
 
@@ -79,7 +78,6 @@ class Extension3(object):
 
 
 class TestExtensionManager(unittest.TestCase):
-
     def setUp(self):
         os.mkdir("tests/extensions")
         with open("tests/extensions/__init__.py", "a") as f:
@@ -95,11 +93,8 @@ class TestExtensionManager(unittest.TestCase):
             f.write(CONTENTS_EXTENSION_3)
             f.close()
 
-    @mock.patch("wifiphisher.common.constants.DEFAULT_EXTENSIONS",
-                ["extension1"])
-    @mock.patch(
-        "wifiphisher.common.constants.EXTENSIONS_LOADPATH",
-        "tests.extensions.")
+    @mock.patch("wifiphisher.common.constants.DEFAULT_EXTENSIONS", ["extension1"])
+    @mock.patch("wifiphisher.common.constants.EXTENSIONS_LOADPATH", "tests.extensions.")
     def test_single_extension(self):
         # We need a NM to init EM
         nm = interfaces.NetworkManager()
@@ -110,14 +105,16 @@ class TestExtensionManager(unittest.TestCase):
         em.init_extensions(shared_data)
         # A deauth packet appears in the air
         packet = (
-            dot11.RadioTap() /
-            dot11.Dot11(
+            dot11.RadioTap()
+            / dot11.Dot11(
                 type=0,
                 subtype=12,
                 addr1="00:00:00:00:00:00",
                 addr2="00:00:00:00:00:00",
-                addr3="00:00:00:00:00:00") /
-            dot11.Dot11Deauth())
+                addr3="00:00:00:00:00:00",
+            )
+            / dot11.Dot11Deauth()
+        )
         em._process_packet(packet)
         # The extension1.py sent packet "1" and returned output
         # "one", "two". Validate with get_packet(), send_output()
@@ -126,11 +123,10 @@ class TestExtensionManager(unittest.TestCase):
         assert em.get_output() == ["one", "two"]
 
     @mock.patch(
-        "wifiphisher.common.constants.DEFAULT_EXTENSIONS", [
-            "extension1", "extension2", "extension3"])
-    @mock.patch(
-        "wifiphisher.common.constants.EXTENSIONS_LOADPATH",
-        "tests.extensions.")
+        "wifiphisher.common.constants.DEFAULT_EXTENSIONS",
+        ["extension1", "extension2", "extension3"],
+    )
+    @mock.patch("wifiphisher.common.constants.EXTENSIONS_LOADPATH", "tests.extensions.")
     def test_multiple_extensions(self):
         # We need a NM to init EM
         nm = interfaces.NetworkManager()
@@ -141,14 +137,16 @@ class TestExtensionManager(unittest.TestCase):
         em.init_extensions(shared_data)
         # A deauth packet appears in the air
         packet = (
-            dot11.RadioTap() /
-            dot11.Dot11(
+            dot11.RadioTap()
+            / dot11.Dot11(
                 type=0,
                 subtype=12,
                 addr1="00:00:00:00:00:00",
                 addr2="00:00:00:00:00:00",
-                addr3="00:00:00:00:00:00") /
-            dot11.Dot11Deauth())
+                addr3="00:00:00:00:00:00",
+            )
+            / dot11.Dot11Deauth()
+        )
         em._process_packet(packet)
         # Packets to send have been merged from the two extensions
         # Validate with get_packet()

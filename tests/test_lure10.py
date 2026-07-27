@@ -1,20 +1,19 @@
-""" This module tests the interface module """
+"""This module tests the interface module"""
 
 import collections
 import io
 import unittest
 from collections import defaultdict
-
-import mock
+from unittest import mock
 import wifiphisher.common.constants as constants
 import wifiphisher.extensions.lure10 as lure10
 
 
 class TestLure10(unittest.TestCase):
-    """ Tests Lure10 class """
+    """Tests Lure10 class"""
 
     def setUp(self):
-        """ Set up the variables """
+        """Set up the variables"""
 
         self.pkt = None
         self.channel = 6
@@ -67,8 +66,10 @@ class TestLure10(unittest.TestCase):
         bssid0 = "11:11:11:11:11:11"
         bssid1 = "22:22:22:22:22:22"
 
-        content = io.StringIO(u"{} one\n{} two".format(bssid0, bssid1))
-        with mock.patch("wifiphisher.extensions.lure10.open", return_value=content, create=True):
+        content = io.StringIO("{} one\n{} two".format(bssid0, bssid1))
+        with mock.patch(
+            "wifiphisher.extensions.lure10.open", return_value=content, create=True
+        ):
             pkts_to_send = self._object0.get_packet(self.pkt)
 
         result = pkts_to_send["*"]
@@ -93,8 +94,10 @@ class TestLure10(unittest.TestCase):
         bssid0 = "11:11:11:11:11:11"
         bssid1 = "22:22:22:22:22:22"
 
-        content = io.StringIO(u"{} one\n{} two".format(bssid0, bssid1))
-        with mock.patch("wifiphisher.extensions.lure10.open", return_value=content, create=True):
+        content = io.StringIO("{} one\n{} two".format(bssid0, bssid1))
+        with mock.patch(
+            "wifiphisher.extensions.lure10.open", return_value=content, create=True
+        ):
             first_run_frames = self._object0.get_packet(self.pkt)
 
         actual = self._object0.get_packet(self.pkt)
@@ -125,8 +128,10 @@ class TestLure10(unittest.TestCase):
         bssid0 = "11:11:11:11:11:11"
         bssid1 = "22:22:22:22:22:22"
 
-        content = io.StringIO(u"{} one\n{} two".format(bssid0, bssid1))
-        with mock.patch("wifiphisher.extensions.lure10.open", return_value=content, create=True):
+        content = io.StringIO("{} one\n{} two".format(bssid0, bssid1))
+        with mock.patch(
+            "wifiphisher.extensions.lure10.open", return_value=content, create=True
+        ):
             self._object0.get_packet(self.pkt)
 
         result = self._object0.send_output()
@@ -154,8 +159,10 @@ class TestLure10(unittest.TestCase):
         bssid0 = "11:11:11:11:11:11"
         bssid1 = "22:22:22:22:22:22"
 
-        content = io.StringIO(u"{} one\n{} two".format(bssid0, bssid1))
-        with mock.patch("wifiphisher.extensions.lure10.open", return_value=content, create=True):
+        content = io.StringIO("{} one\n{} two".format(bssid0, bssid1))
+        with mock.patch(
+            "wifiphisher.extensions.lure10.open", return_value=content, create=True
+        ):
             self._object1.get_packet(self.pkt)
 
         self._object1.send_output()

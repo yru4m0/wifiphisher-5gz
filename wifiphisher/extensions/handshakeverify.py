@@ -1,18 +1,17 @@
-# pylint: skip-file
 """
 Extension that verifies WPA key by precaptured handshake using cowpatty
 """
+
 import subprocess
 from collections import defaultdict
 import shlex
 
 import wifiphisher.common.extensions as extensions
 
+
 def get_process_result(command_string):
     command = shlex.split(command_string)
-    process = subprocess.Popen(command,
-        stdout=subprocess.PIPE,
-        universal_newlines=True)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, universal_newlines=True)
     output = ""
     while True:
         output += process.stdout.readline().strip()
@@ -23,13 +22,14 @@ def get_process_result(command_string):
             break
     return output
 
+
 def is_valid_handshake_capture(filename):
-    command = '/bin/cowpatty -c -r {}'.format(filename)
+    command = "/bin/cowpatty -c -r {}".format(filename)
     output = get_process_result(command)
-    return ("Collected all necessary data" in output)
+    return "Collected all necessary data" in output
+
 
 class Handshakeverify(object):
-
     def __init__(self, data):
         self.capt_file = data.args.handshake_capture
         self.essid = data.target_ap_essid
@@ -57,11 +57,12 @@ class Handshakeverify(object):
     def psk_verify(self, *list_data):
         self.key = list_data[0]
 
-        keyfile = open(self.key_file_path, "w")
-        keyfile.write(self.key + "\n")
-        keyfile.close()
-        
-        command = '/bin/cowpatty -f "{}" -r "{}" -s "{}"'.format(self.key_file_path, self.capt_file, self.essid)
+        with open(self.key_file_path, "w") as keyfile:
+            keyfile.write(self.key + "\n")
+
+        command = '/bin/cowpatty -f "{}" -r "{}" -s "{}"'.format(
+            self.key_file_path, self.capt_file, self.essid
+        )
 
         self.found = False
 
@@ -71,8 +72,7 @@ class Handshakeverify(object):
             self.found = True
 
         if self.key != "" and self.found:
-            return 'success'
+            return "success"
         elif self.key != "" and not self.found:
-            return 'fail'
-        return 'unknown'
-
+            return "fail"
+        return "unknown"

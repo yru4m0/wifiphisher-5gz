@@ -1,6 +1,4 @@
-[![Build Status](https://travis-ci.org/wifiphisher/wifiphisher.svg?branch=master)](https://travis-ci.org/wifiphisher/wifiphisher)
-[![Documentation Status](https://readthedocs.org/projects/wifiphisher/badge/?version=latest)](http://wifiphisher.readthedocs.io/en/latest/?badge=latest)
-![Python Version](https://img.shields.io/badge/python-3.7-blue.svg)
+[![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org)
 ![License](https://img.shields.io/badge/license-GPL-blue.svg)
 
 <p align="center"><img src="https://wifiphisher.github.io/wifiphisher/wifiphisher.png" /></p>
@@ -38,7 +36,7 @@ unknowingly, or in other words, obtaining a man-in-the-middle (MITM) position. W
     * KARMA, where Wifiphisher masquerades as a public network searched for by nearby Wi-Fi clients.
     * Known Beacons, where Wifiphisher broadcasts a dictionary of common ESSIDs, that the around wireless stations have likely connected to in the past.
 
-    At the same time, Wifiphisher keeps forging “Deauthenticate” or “Disassociate” packets to disrupt existing associations and eventually lure victims using the above techniques.
+    At the same time, Wifiphisher keeps forging "Deauthenticate" or "Disassociate" packets to disrupt existing associations and eventually lure victims using the above techniques.
 
 <p align="center"><img width="70%" src="https://wifiphisher.github.io/wifiphisher/diagram.jpg" /><br /><i>Performing MiTM attack</i></p>
 
@@ -55,26 +53,43 @@ Windows network manager in order to capture the Pre-Shared Key.
 <p align="center"><img src="https://wifiphisher.github.io/wifiphisher/ss-webphishing.png" /><br /><i>Fake <a href="https://wifiphisher.org/ps/wifi_connect/">web-based network manager</a></i></p>
 
 ## Requirements
-Following are the requirements for getting the most out of Wifiphisher:
 
-  - A working Linux system. People have made Wifiphisher work on many distros, but Kali Linux is the officially supported distribution, thus all new features are primarily tested on this platform.
-  - One wireless network adapter that supports AP & Monitor mode and is capable of injection. Drivers should support netlink.
+- A working Linux system (Kali Linux recommended).
+- One wireless network adapter supporting AP & Monitor mode with injection.
+- [uv](https://docs.astral.sh/uv/) (Python package manager).
+- Python 3.9 or later.
+- System packages: `dnsmasq`, `hostapd`, `iw`, `libnl-3-dev`, `libnl-genl-3-dev`, `libssl-dev`.
 
 ## Installation
 
-To install the latest development version type the following commands:
-
 ```bash
-git clone https://github.com/wifiphisher/wifiphisher.git # Download the latest revision
-cd wifiphisher # Switch to tool's directory
-sudo python setup.py install # Install any dependencies
+# Clone both repos (as siblings)
+git clone https://github.com/yru4m0/roguehostapd-5gz.git
+git clone https://github.com/yru4m0/wifiphisher-5gz.git
+
+# Install system dependencies (Debian/Ubuntu)
+sudo apt install dnsmasq iw hostapd libnl-3-dev libnl-genl-3-dev libssl-dev
+
+# Install roguehostapd (C extension build)
+cd roguehostapd-5gz
+uv pip install -e .
+cd ../wifiphisher-5gz
+
+# Install wifiphisher
+make install
 ```
 
-Alternatively, you can download the latest stable version from the <a href="https://github.com/wifiphisher/wifiphisher/releases">Releases page</a>.
+## Development
+
+```bash
+make dev        # install dev dependencies (pytest, ruff)
+make test       # run tests
+make lint       # run linter
+```
 
 ## Usage
 
-Run the tool by typing `wifiphisher` or `python bin/wifiphisher` (from inside the tool's directory).
+Run the tool by typing `wifiphisher` or `uv run wifiphisher`.
 
 By running the tool without any options, it will find the right interfaces and interactively ask the user to pick the ESSID of the target network (out of a list with all the ESSIDs in the around area) as well as a phishing scenario to perform. By default, the tool will perform both Evil Twin and KARMA attacks.
 

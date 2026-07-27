@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# pylint: skip-file
 
 import os
+from subprocess import DEVNULL as DN
 
 dir_of_executable = os.path.dirname(__file__)
 path_to_project_root = os.path.abspath(
@@ -59,7 +59,6 @@ NON_CLIENT_ADDRESSES = set(
 )
 DEFAULT_OUI = "02:00:00"
 LINES_OUTPUT = 3
-DN = open(os.devnull, "w")
 INTERFERING_PROCS = [
     "wpa_action",
     "wpa_supplicant",

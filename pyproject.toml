@@ -1,3 +1,50 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "wifiphisher"
+version = "1.4"
+description = "Automated phishing attacks against Wi-Fi networks"
+authors = [{ name = "sophron", email = "sophron@latthi.com" }]
+license = { text = "GPL" }
+requires-python = ">=3.9"
+keywords = ["wifiphisher", "evil", "twin", "phishing"]
+dependencies = [
+    "pbkdf2",
+    "pyric",
+    "roguehostapd",
+    "scapy",
+    "tornado>=5.0.0",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Natural Language :: English",
+    "Operating System :: Unix",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Security",
+    "Topic :: System :: Networking",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Information Technology",
+]
+
+[project.urls]
+Homepage = "https://github.com/wifiphisher/wifiphisher"
+
+[project.scripts]
+wifiphisher = "wifiphisher.pywifiphisher:run"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+exclude = ["docs", "tests"]
+
+[tool.uv.sources]
+roguehostapd = { path = "../roguehostapd-5gz" }
