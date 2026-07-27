@@ -21,8 +21,6 @@ from distutils.errors import CompileError, LinkError
 from setuptools import Command, find_packages, setup
 from textwrap import dedent
 
-import wifiphisher.common.constants as constants
-
 try:
     raw_input  # Python 2
     sys.exit("Please use Python 3 to install Wifiphisher.")
