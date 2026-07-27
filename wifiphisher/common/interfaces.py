@@ -400,6 +400,7 @@ class NetworkManager(object):
         :return: True upon success
         :rtype: bool
         """
+        err = None
         try:
             proc = Popen(
                 ["nmcli", "dev", "set", interface, "manage", "no"], stderr=PIPE
@@ -879,6 +880,7 @@ def is_managed_by_network_manager(interface_name):
             stderr=PIPE,
         )
         out, err = nmcli_process.communicate()
+        out = out.decode() if isinstance(out, bytes) else out
 
         if err == None and out != "":
             for l in out.splitlines():

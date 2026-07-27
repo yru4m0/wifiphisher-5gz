@@ -160,7 +160,7 @@ class TestIsManagedByNetworkManager(unittest.TestCase):
         """
         process_mock = mock.Mock()
         process_mock.communicate.return_value = (
-            b"wlan0      connected    Synced\nwlan1      unmanaged    \n",
+            b"wlan0      connected    wlp2s0\nwlan1      unmanaged    \n",
             None,
         )
         process_mock.stdout = mock.Mock()
@@ -168,6 +168,23 @@ class TestIsManagedByNetworkManager(unittest.TestCase):
         mock_popen.return_value = process_mock
         is_managed = interfaces.is_managed_by_network_manager("wlan0")
         self.assertTrue(is_managed)
+
+    @mock.patch("wifiphisher.common.interfaces.Popen")
+    def test_is_managed_by_networkmanager_is_managed_false(self, mock_popen):
+        """
+        Test is_managed_by_networkmanager with the interface
+        is not managed by NetworkManager
+        """
+        process_mock = mock.Mock()
+        process_mock.communicate.return_value = (
+            b"wlan0      unmanaged    \nwlan1      connected    wlp2s0\n",
+            None,
+        )
+        process_mock.stdout = mock.Mock()
+        process_mock.stdout.close = mock.Mock()
+        mock_popen.return_value = process_mock
+        is_managed = interfaces.is_managed_by_network_manager("wlan0")
+        self.assertFalse(is_managed)
 
     @mock.patch("wifiphisher.common.interfaces.Popen")
     def test_is_managed_by_networkmanager_is_managed_false(self, mock_popen):
@@ -191,11 +208,11 @@ class TestIsManagedByNetworkManager(unittest.TestCase):
         """
         Test is_managed_by_network_manager function when an
         unexpected error happens and checks to see if the
-        error is raised
+        error is caught and False is returned
         """
         mock_popen.side_effect = KeyError
-        with self.assertRaises(KeyError):
-            interfaces.is_managed_by_network_manager("wlan0")
+        result = interfaces.is_managed_by_network_manager("wlan0")
+        self.assertFalse(result)
 
 
 class TestInterfacePropertyDetector(unittest.TestCase):
@@ -969,7 +986,7 @@ class TestNetworkManager(unittest.TestCase):
             self.network_manager.start(args)
 
         the_exception = error.exception
-        self.assertEqual(the_exception[0], 2220, "The error was not caught.")
+        self.assertEqual(the_exception.args[0], 2220, "The error was not caught.")
 
     @mock.patch("wifiphisher.common.interfaces.pyw")
     def test_on_exit_no_active_none(self, pyw):
