@@ -73,27 +73,32 @@ class AccessPoint(object):
             raise Exception
 
         subprocess.Popen(
-            ["ifconfig", str(self.interface), "mtu", "1400"],
+            ["ip", "link", "set", str(self.interface), "mtu", "1400"],
             stdout=constants.DN,
             stderr=constants.DN,
         )
 
         subprocess.Popen(
             [
-                "ifconfig",
+                "ip",
+                "addr",
+                "add",
+                "{}/24".format(constants.NETWORK_GW_IP),
+                "dev",
                 str(self.interface),
-                "up",
-                constants.NETWORK_GW_IP,
-                "netmask",
-                constants.NETWORK_MASK,
             ],
+            stdout=constants.DN,
+            stderr=constants.DN,
+        )
+        subprocess.Popen(
+            ["ip", "link", "set", str(self.interface), "up"],
             stdout=constants.DN,
             stderr=constants.DN,
         )
         # Give it some time to avoid "SIOCADDRT: Network is unreachable"
         time.sleep(1)
         # Make sure that we have set the network properly.
-        proc = subprocess.check_output(["ifconfig", str(self.interface)])
+        proc = subprocess.check_output(["ip", "addr", "show", str(self.interface)])
         if constants.NETWORK_GW_IP not in proc.decode("utf-8"):
             return False
         subprocess.call(
