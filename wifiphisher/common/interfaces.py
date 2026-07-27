@@ -485,7 +485,11 @@ class NetworkManager(object):
         """
 
         card = self._name_to_object[interface_name].card
-        pyw.up(card)
+        try:
+            pyw.up(card)
+        except pyric.error as e:
+            if e.args[0] != 114:
+                raise
 
     def down_interface(self, interface_name):
         """
