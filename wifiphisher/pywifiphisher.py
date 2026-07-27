@@ -754,7 +754,9 @@ class WifiphisherEngine:
                 mon_iface, self.mac_matcher, self.network_manager, args
             )
             ap_sel_object = tui.TuiApSel()
-            access_point = curses.wrapper(ap_sel_object.gather_info, ap_info_object)
+            access_point = tui.safe_curses_wrapper(
+                ap_sel_object.gather_info, ap_info_object
+            )
             # if the user has chosen a access point continue
             # otherwise shutdown
             if access_point:
@@ -977,7 +979,7 @@ class WifiphisherEngine:
                 args,
             )
             tui_main_object = tui.TuiMain()
-            curses.wrapper(tui_main_object.gather_info, main_info)
+            tui.safe_curses_wrapper(tui_main_object.gather_info, main_info)
             self.stop()
         except KeyboardInterrupt:
             self.stop()

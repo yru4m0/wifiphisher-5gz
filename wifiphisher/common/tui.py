@@ -17,6 +17,14 @@ import wifiphisher.common.phishingpage as phishingpage
 import wifiphisher.common.recon as recon
 import wifiphisher.common.victim as victim
 
+
+def safe_curses_wrapper(func, *args, **kwargs):
+    try:
+        return curses.wrapper(func, *args, **kwargs)
+    except curses.error:
+        pass
+
+
 # information for the main terminal
 MainInfo = namedtuple("MainInfo", constants.MAIN_TUI_ATTRS)
 # information for the AP selection terminal
@@ -132,7 +140,7 @@ class TuiTemplateSelection(object):
             raise phishingpage.InvalidTemplate
         else:
             # prompt interactive phishing scenarios to let user select one
-            template = curses.wrapper(self.display_info, templates, template_names)
+            template = safe_curses_wrapper(self.display_info, templates, template_names)
         return template
 
     def key_movement(self, screen, number_of_sections, key):
